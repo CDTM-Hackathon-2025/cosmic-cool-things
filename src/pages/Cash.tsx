@@ -11,6 +11,7 @@ import ProfileMenu from "@/components/ProfileMenu";
 import ChatButton from "@/components/ChatButton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useToast } from "@/hooks/use-toast";
 
 // We'll use the Transaction interface from the data file to avoid type conflicts
 import { Transaction } from "@/data/transactionData";
@@ -19,8 +20,11 @@ const Cash = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [balance, setBalance] = useState(0);
   const navigate = useNavigate();
-  // We'll set this to null initially, as we'll handle it directly in the transaction items
-  const [showWorkLaptopNotification, setShowWorkLaptopNotification] = useState(false);
+  // Track which transaction notifications are visible
+  const [visibleNotifications, setVisibleNotifications] = useState<{[key: string]: boolean}>({
+    "Work Laptop": true
+  });
+  const { toast } = useToast();
 
   // Calculate total balance
   useEffect(() => {
@@ -45,8 +49,17 @@ const Cash = () => {
   
   // Handler for the invoice button to navigate to tax statement page
   const handleAddInvoice = () => {
-    setShowWorkLaptopNotification(false);
+    setVisibleNotifications(prev => ({...prev, "Work Laptop": false}));
+    toast({
+      title: "Invoice Upload",
+      description: "Navigating to tax statement page",
+    });
     navigate('/tax-statement');
+  };
+
+  // Handle closing notification
+  const handleCloseNotification = (transactionName: string) => {
+    setVisibleNotifications(prev => ({...prev, [transactionName]: false}));
   };
 
   return (
@@ -120,7 +133,7 @@ const Cash = () => {
                           </div>
 
                           {/* Display the work notification directly under the Laptop transaction */}
-                          {transaction.name === "Work Laptop" && (
+                          {transaction.name === "Work Laptop" && visibleNotifications["Work Laptop"] && (
                             <div className="mt-2 mb-2 bg-gray-800/70 p-3 rounded border border-gray-700 text-sm">
                               <div className="flex items-start">
                                 <Avatar className="h-8 w-8 mr-3 mt-0.5 flex-shrink-0">
@@ -146,7 +159,7 @@ const Cash = () => {
                                         variant="outline"
                                         size="sm"
                                         className="h-6 px-1.5 py-0 bg-transparent border border-gray-600 hover:bg-gray-700"
-                                        onClick={() => setShowWorkLaptopNotification(false)}
+                                        onClick={() => handleCloseNotification("Work Laptop")}
                                       >
                                         <X size={12} className="text-gray-400" />
                                       </Button>
