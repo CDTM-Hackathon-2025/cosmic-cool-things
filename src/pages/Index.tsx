@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,23 @@ const Index = () => {
     value: item.value,
     date: item.date
   }));
+  
+  // Calculate min and max values for the YAxis domain
+  const valueExtent = useMemo(() => {
+    if (!chartData.length) return [0, 0];
+    
+    // Extract all values
+    const values = chartData.map(item => item.value);
+    
+    // Find min and max
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    
+    // Add a buffer (1%) to make the chart more visually appealing
+    const buffer = (max - min) * 0.01;
+    
+    return [min - buffer, max + buffer];
+  }, [chartData]);
 
   const percentageGain = calculatePercentageGain();
 
@@ -173,7 +191,7 @@ const Index = () => {
                   />
                   <YAxis 
                     hide={true}
-                    domain={['auto', 'auto']} 
+                    domain={valueExtent} 
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Line 

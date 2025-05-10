@@ -5,7 +5,7 @@ import {
   ChartTooltip, 
   ChartTooltipContent 
 } from "@/components/ui/chart";
-import { Line, LineChart } from "recharts";
+import { Line, LineChart, YAxis } from "recharts";
 
 interface ChartData {
   date: Date | string;
@@ -67,6 +67,23 @@ const ForYouMiniChart: React.FC<ForYouMiniChartProps> = ({
     return [...processedData].sort((a, b) => a.timestamp - b.timestamp);
   }, [data, addNoise, noiseAmount]);
 
+  // Calculate min and max values for the domain
+  const valueExtent = useMemo(() => {
+    if (!chartData.length) return [0, 0];
+    
+    // Extract all values
+    const values = chartData.map(item => item.value || 0);
+    
+    // Find min and max
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    
+    // Add a small buffer (2%) to make the chart more visually appealing
+    const buffer = (max - min) * 0.02;
+    
+    return [min - buffer, max + buffer];
+  }, [chartData]);
+
   // Chart config for styling
   const chartConfig = {
     line: {
@@ -84,6 +101,10 @@ const ForYouMiniChart: React.FC<ForYouMiniChartProps> = ({
         className="h-full w-full"
       >
         <LineChart data={chartData}>
+          <YAxis 
+            domain={valueExtent} 
+            hide={true} 
+          />
           <Line
             type="monotone"
             dataKey="value"
