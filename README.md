@@ -1,26 +1,12 @@
 # Welcome to your Lovable project
 
-## Project info
+## One Sentence Pitch
 
-**URL**: https://lovable.dev/projects/bb35f75c-3940-4987-a5d8-f045f7f91cd0
+The only app you need to manage every part of your financial life, to democratize wealth. 
 
-## How can I edit this code?
+## Product Overview
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/bb35f75c-3940-4987-a5d8-f045f7f91cd0) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Click here to launch the app or follow the steps below to install 
 
 ```sh
 # Step 1: Clone the repository using the project's Git URL.
@@ -36,21 +22,9 @@ npm i
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+![Figma App](CDTM_TradeRepublic.png)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
+## Tech Stack
 
 This project is built with:
 
@@ -60,14 +34,21 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
-## How can I deploy this project?
+## Challenges faced
 
-Simply open [Lovable](https://lovable.dev/projects/bb35f75c-3940-4987-a5d8-f045f7f91cd0) and click on Share -> Publish.
+- building a front end as developers with no front-end dev experience might result in a wild ride -> luckily, tools like [Lovable](https://lovable.dev/) can be impressively useful! most important thing is to focus on fast iteration instead of lengthy prompts
 
-## Can I connect a custom domain to my Lovable project?
+- making sure the other person really understands what you envision for how a feature should look like and be used when implemented -> use tools like [Figma](https://www.figma.com) to quickly visualize your idea so other people see what you are thinking about
 
-Yes, you can!
+## Interesting Facts
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+This project took about 
+- 250 Lovable-tokens to create.
+- 4 people working about 24 hrs each.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+# People Involved
+
+- [Marko Alten](https://github.com/orgs/CDTM-Hackathon-2025/people/m4rk0401)
+- [Finn Schäfer](https://github.com/orgs/CDTM-Hackathon-2025/people/finn1901)
+- [Vasilije Rakčević](https://github.com/orgs/CDTM-Hackathon-2025/people/VasilyRakche)
+- [Henri Höchter](https://github.com/orgs/CDTM-Hackathon-2025/people/henrihoechter)
