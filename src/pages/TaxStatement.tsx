@@ -212,7 +212,7 @@ const TaxStatement = () => {
                               <div>{expense.name}</div>
                               {expense.name === 'Laptop' && (
                                 <div className="flex items-center gap-2">
-                                  <span className="text-gray-400 text-xs">Work?</span>
+                                  <span className="text-gray-400 text-xs">For work?</span>
                                   <div className="flex gap-2">
                                     <Button
                                       variant="ghost"
