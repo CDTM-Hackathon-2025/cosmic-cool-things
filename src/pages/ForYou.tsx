@@ -33,29 +33,22 @@ const ForYou = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
-  // Calculate total cash based on an initial balance of 10000€ plus all transactions
+  // Calculate total cash based on transaction data only (no initial balance)
   const totalCash = useMemo(() => {
-    const initialBalance = 10000;
     const transactionsSum = transactionData.reduce((sum, transaction) => sum + transaction.amount, 0);
-    return initialBalance + transactionsSum;
+    return transactionsSum;
   }, []);
   
-  // Generate data for the cash chart with a 10000€ starting point
+  // Generate data for the cash chart without the initial 10000€
   const cashChartData = useMemo(() => {
-    const initialBalance = 10000;
     // Sort transactions by timestamp (oldest first)
     const sortedTransactions = [...transactionData].sort((a, b) => a.timestamp - b.timestamp);
     
-    // Initialize chart data with the starting balance
-    const chartData = [{
-      date: new Date(sortedTransactions[0]?.timestamp - 86400000 || Date.now()), // One day before first transaction
-      value: initialBalance,
-      amount: initialBalance,
-      timestamp: sortedTransactions[0]?.timestamp - 86400000 || Date.now()
-    }];
+    // Initialize chart data with the first transaction
+    const chartData = [];
     
-    // Running total starting from initial balance
-    let runningTotal = initialBalance;
+    // Running total starting from 0
+    let runningTotal = 0;
     
     // Add each transaction to the chart data
     sortedTransactions.forEach(transaction => {
@@ -71,7 +64,7 @@ const ForYou = () => {
     return chartData;
   }, []);
   
-  // Mock data for total amounts
+  // Mock data for total amounts (updated)
   const totalWealth = 13751.98;
   
   // Initialize audio element
@@ -310,7 +303,7 @@ const ForYou = () => {
               </div>
             </div>
             
-            {/* Cash row with mini chart - updated to use calculated data */}
+            {/* Cash row with mini chart - updated to use calculated data without initial balance */}
             <div className="mb-6 flex flex-row justify-between items-center bg-gray-900/30 p-3 rounded-lg">
               <div className="flex flex-col">
                 <p className="text-gray-500 text-sm mb-1">Total Cash</p>
