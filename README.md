@@ -27,13 +27,7 @@ npm run dev
 
 ## Tech Stack
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+This project is built by embedding a fine-tuned LLM pipeline as a backbone to a custom-developed interface. The interface has been set up using Vite to handle builds and dev tooling, TypeScript for maintainable and developer-friendly code, React and shadcn-ui to provide ready-to-use UI components, and Tailwind CSS for styling. We have used various LLM-based tools to speed up development, such as Lovable and ChatGPT. Within the app, we enable an efficient structure for generating safe OpenAI API requests for interaction via voice and chat. We use models such as mistral-large-latest, gpt-4o-mini, whisper-1 and tts-1. Tools such as Beyond Presence and HeyGen have been employed for automated video content generation to enable user-friendly way of conveying essential information.   
 
 ## Challenges faced
 
