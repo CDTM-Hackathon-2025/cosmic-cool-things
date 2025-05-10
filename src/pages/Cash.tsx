@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, X } from "lucide-react";
+import { MessageCircle, X, Check } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import ChatPopup from "@/components/ChatPopup";
 import CategoryLineChart from "@/components/CategoryLineChart";
@@ -10,6 +10,7 @@ import { transactionData } from "@/data/transactionData";
 import ProfileMenu from "@/components/ProfileMenu";
 import ChatButton from "@/components/ChatButton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // We'll use the Transaction interface from the data file to avoid type conflicts
 import { Transaction } from "@/data/transactionData";
@@ -18,8 +19,8 @@ const Cash = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [balance, setBalance] = useState(0);
   const navigate = useNavigate();
-  // State to control the visibility of the work laptop notification
-  const [showWorkLaptopNotification, setShowWorkLaptopNotification] = useState(true);
+  // We'll set this to null initially, as we'll handle it directly in the transaction items
+  const [showWorkLaptopNotification, setShowWorkLaptopNotification] = useState(false);
 
   // Calculate total balance
   useEffect(() => {
@@ -91,45 +92,6 @@ const Cash = () => {
               <CategoryLineChart transactions={transactionData} height={270} />
             </div>
             
-            {/* Work Laptop Professional Expenditures Notification - Updated with Christine Lagarde's image */}
-            {showWorkLaptopNotification && (
-              <div className="mb-5 bg-gray-800 p-4 rounded-lg border border-gray-700 relative">
-                <button 
-                  className="absolute top-3 right-3 text-gray-400 hover:text-white"
-                  onClick={() => setShowWorkLaptopNotification(false)}
-                >
-                  <X size={18} />
-                </button>
-                
-                <div className="flex">
-                  <div className="mr-3 flex-shrink-0">
-                    <Avatar className="w-12 h-12 border border-gray-700">
-                      <AvatarImage 
-                        src="https://assets.weforum.org/author/image/FEl5eYCwOvvIK65Uc9cYIIHnsS-lQatkhEXU_aLvpzw.jpg" 
-                        alt="Christine Lagarde" 
-                        className="object-cover" 
-                      />
-                      <AvatarFallback className="bg-purple-100 text-purple-800">CL</AvatarFallback>
-                    </Avatar>
-                  </div>
-                  <div className="flex-grow">
-                    <h3 className="text-white text-md font-semibold mb-1">Professional Expenditure</h3>
-                    <p className="text-gray-300 text-sm mb-3">
-                      Do you want to add your work laptop purchase ($1,600.00) to professional expenditures? An invoice needs to be uploaded to complete the necessary data for filing your tax report at the end of the fiscal year.
-                    </p>
-                    <div className="flex justify-end">
-                      <Button 
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                        onClick={handleAddInvoice}
-                      >
-                        Yes, Add and Upload Invoice
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
             {/* Transactions section */}
             <div className="relative mb-3">
               <div className="flex justify-between items-center mb-3">
@@ -146,13 +108,53 @@ const Cash = () => {
                         <div key={index} className={`border-b border-gray-800 pb-1.5 ${index === transactions.length - 1 ? 'mb-0' : ''}`}>
                           <div className="flex justify-between items-center">
                             <div className="flex flex-col">
-                              <h5 className="text-white text-sm font-medium leading-tight">{transaction.name}</h5>
+                              <h5 className="text-white text-sm font-medium leading-tight">
+                                {/* Rename "Work Laptop" to just "Laptop" */}
+                                {transaction.name === "Work Laptop" ? "Laptop" : transaction.name}
+                              </h5>
                               <span className="text-gray-400 text-xs">{transaction.category}</span>
                             </div>
                             <span className={`${transaction.amount < 0 ? 'text-red-500' : 'text-green-500'} text-sm font-medium`}>
                               {transaction.amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
                             </span>
                           </div>
+
+                          {/* Display the work notification directly under the Laptop transaction */}
+                          {transaction.name === "Work Laptop" && (
+                            <div className="mt-2 mb-2 bg-gray-800/70 p-3 rounded border border-gray-700 text-sm">
+                              <div className="flex items-start">
+                                <div className="flex-1">
+                                  <p className="text-gray-300 text-xs">
+                                    In case item is related to your Work, please confirm and upload invoice. 
+                                    That way costs could be claimed back through the tax return procedure.
+                                  </p>
+                                  <div className="flex justify-between items-center mt-2">
+                                    <span className="text-gray-400 text-xs">
+                                      <span className="mr-1">Amount:</span>
+                                      <span className="text-gray-300 opacity-70">1,600.00 €</span>
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <Button 
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 px-2 py-1 bg-transparent border border-gray-600 hover:bg-gray-700"
+                                        onClick={() => setShowWorkLaptopNotification(false)}
+                                      >
+                                        <X size={14} className="text-gray-400" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        className="h-7 px-2 py-1 bg-blue-600 hover:bg-blue-700"
+                                        onClick={handleAddInvoice}
+                                      >
+                                        <Check size={14} className="mr-1" /> Upload Invoice
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
