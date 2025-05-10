@@ -8,6 +8,8 @@ import ChatPopup from "@/components/ChatPopup";
 import CategoryLineChart from "@/components/CategoryLineChart";
 import { transactionData } from "@/data/transactionData";
 import ProfileMenu from "@/components/ProfileMenu";
+import ChatButton from "@/components/ChatButton";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 // We'll use the Transaction interface from the data file to avoid type conflicts
 import { Transaction } from "@/data/transactionData";
@@ -89,7 +91,7 @@ const Cash = () => {
               <CategoryLineChart transactions={transactionData} height={270} />
             </div>
             
-            {/* Work Laptop Professional Expenditures Notification - Updated */}
+            {/* Work Laptop Professional Expenditures Notification - Updated with Christine Lagarde's image */}
             {showWorkLaptopNotification && (
               <div className="mb-5 bg-gray-800 p-4 rounded-lg border border-gray-700 relative">
                 <button 
@@ -101,11 +103,14 @@ const Cash = () => {
                 
                 <div className="flex">
                   <div className="mr-3 flex-shrink-0">
-                    <img 
-                      src="/lovable-uploads/ced1c936-bc67-4dac-bb50-b08fd8300aa3.png" 
-                      alt="Repubblica" 
-                      className="w-12 h-12 rounded-full object-cover border border-gray-700" 
-                    />
+                    <Avatar className="w-12 h-12 border border-gray-700">
+                      <AvatarImage 
+                        src="https://assets.weforum.org/author/image/FEl5eYCwOvvIK65Uc9cYIIHnsS-lQatkhEXU_aLvpzw.jpg" 
+                        alt="Christine Lagarde" 
+                        className="object-cover" 
+                      />
+                      <AvatarFallback className="bg-purple-100 text-purple-800">CL</AvatarFallback>
+                    </Avatar>
                   </div>
                   <div className="flex-grow">
                     <h3 className="text-white text-md font-semibold mb-1">Professional Expenditure</h3>
@@ -174,13 +179,10 @@ const Cash = () => {
         
         {/* Fixed button at the bottom */}
         <div className="absolute bottom-6 left-0 w-full px-6 flex justify-center">
-          <Button 
-            className="w-full max-w-[350px] bg-white hover:bg-white/90 text-black font-semibold py-6 rounded-full text-lg"
+          <ChatButton 
             onClick={() => setIsChatOpen(true)}
-          >
-            <span>Chat</span>
-            <MessageCircle size={20} className="ml-2" />
-          </Button>
+            className="w-full max-w-[350px] text-lg"
+          />
         </div>
       </div>
       
