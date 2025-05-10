@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, ChevronLeft, ChevronRight, ExternalLink, Play, Pause, ChartLine, SkipBack, SkipForward } from "lucide-react";
@@ -33,9 +33,46 @@ const ForYou = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
+  // Calculate total cash based on an initial balance of 10000€ plus all transactions
+  const totalCash = useMemo(() => {
+    const initialBalance = 10000;
+    const transactionsSum = transactionData.reduce((sum, transaction) => sum + transaction.amount, 0);
+    return initialBalance + transactionsSum;
+  }, []);
+  
+  // Generate data for the cash chart with a 10000€ starting point
+  const cashChartData = useMemo(() => {
+    const initialBalance = 10000;
+    // Sort transactions by timestamp (oldest first)
+    const sortedTransactions = [...transactionData].sort((a, b) => a.timestamp - b.timestamp);
+    
+    // Initialize chart data with the starting balance
+    const chartData = [{
+      date: new Date(sortedTransactions[0]?.timestamp - 86400000 || Date.now()), // One day before first transaction
+      value: initialBalance,
+      amount: initialBalance,
+      timestamp: sortedTransactions[0]?.timestamp - 86400000 || Date.now()
+    }];
+    
+    // Running total starting from initial balance
+    let runningTotal = initialBalance;
+    
+    // Add each transaction to the chart data
+    sortedTransactions.forEach(transaction => {
+      runningTotal += transaction.amount;
+      chartData.push({
+        date: new Date(transaction.timestamp),
+        value: runningTotal,
+        amount: runningTotal,
+        timestamp: transaction.timestamp
+      });
+    });
+    
+    return chartData;
+  }, []);
+  
   // Mock data for total amounts
   const totalWealth = 13751.98;
-  const totalCash = 15401.98; // Updated to match the Balance from the Cash page
   
   // Initialize audio element
   useEffect(() => {
@@ -273,7 +310,7 @@ const ForYou = () => {
               </div>
             </div>
             
-            {/* Cash row with mini chart */}
+            {/* Cash row with mini chart - updated to use calculated data */}
             <div className="mb-6 flex flex-row justify-between items-center bg-gray-900/30 p-3 rounded-lg">
               <div className="flex flex-col">
                 <p className="text-gray-500 text-sm mb-1">Total Cash</p>
@@ -282,7 +319,7 @@ const ForYou = () => {
               </div>
               <div className="h-16 w-28">
                 <ForYouMiniChart 
-                  data={transactionData} 
+                  data={cashChartData} 
                   color="#33C3F0" 
                   showFullTimeRange={true}
                   showTooltip={true} 
