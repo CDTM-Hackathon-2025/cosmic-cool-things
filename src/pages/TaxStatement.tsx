@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, FileCheck, HelpCircle, Check, X } from "lucide-react";
+import { Loader2, ArrowLeft, FileCheck, HelpCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import ProfileMenu from "@/components/ProfileMenu";
@@ -208,31 +208,8 @@ const TaxStatement = () => {
                       {professionalExpenses.map((expense) => (
                         <TableRow key={expense.id} className="border-gray-800">
                           <TableCell className="text-white py-2">
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center">
                               <div>{expense.name}</div>
-                              {expense.name === 'Laptop' && (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-gray-400 text-xs">For work?</span>
-                                  <div className="flex gap-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className={`rounded-full h-5 w-5 p-0 ${workExpenseStatus[expense.id] === true ? 'bg-green-500/20 text-green-500' : 'bg-gray-800 text-gray-400'}`}
-                                      onClick={() => handleWorkStatusChange(expense.id, true)}
-                                    >
-                                      <Check className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost" 
-                                      size="icon"
-                                      className={`rounded-full h-5 w-5 p-0 ${workExpenseStatus[expense.id] === false ? 'bg-red-500/20 text-red-500' : 'bg-gray-800 text-gray-400'}`}
-                                      onClick={() => handleWorkStatusChange(expense.id, false)}
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           </TableCell>
                           <TableCell className={`text-right py-2 ${expense.name === 'Laptop' ? 'text-red-400/70' : 'text-red-400'}`}>
