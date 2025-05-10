@@ -5,6 +5,7 @@
 The only app you need to manage every part of your financial life, to democratize wealth. 
 
 ## Product Overview
+Our project redefines banking by introducing Republica, a multimodal assistant integrated into the Trade Republic app. While traditional banks offer static interfaces, Republica enables intuitive interaction via speech and text, adapting to all users. It educates users on markets, offers investment insights, supports wealth building, and simplifies the German tax system. A personalized "For You" page additionally visualizes portfolio data, categorizes expenses, and delivers short market summaries and curated content. Republica transforms everyday banking into an interactive, intelligent, and accessible experience for everyone.
 
 Click [here](cosmic-cool-things.lovable.app) to launch the app or follow the steps below to install 
 
