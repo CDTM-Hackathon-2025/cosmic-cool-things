@@ -6,7 +6,7 @@ The only app you need to manage every part of your financial life, to democratiz
 
 ## Product Overview
 
-Click here to launch the app or follow the steps below to install 
+Click [here](cosmic-cool-things.lovable.app) to launch the app or follow the steps below to install 
 
 ```sh
 # Step 1: Clone the repository using the project's Git URL.
