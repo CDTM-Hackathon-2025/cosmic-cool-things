@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, FileCheck } from "lucide-react";
+import { Loader2, ArrowLeft, FileCheck, HelpCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import ProfileMenu from "@/components/ProfileMenu";
 import { useToast } from "@/hooks/use-toast";
 import { transactionData } from "@/data/transactionData";
 import { useNavigate } from "react-router-dom";
+import VideoPlayer from "@/components/VideoPlayer";
 import {
   Table,
   TableBody,
@@ -27,6 +28,7 @@ const TaxStatement = () => {
   const [netIncome, setNetIncome] = useState<number | null>(null);
   const [professionalExpenses, setProfessionalExpenses] = useState<any[]>([]);
   const [totalProfessionalExpenses, setTotalProfessionalExpenses] = useState<number>(0);
+  const [isVideoOpen, setIsVideoOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -105,13 +107,32 @@ const TaxStatement = () => {
               <ProfileMenu />
             </div>
             
-            {/* Tax Number Display */}
-            <div className="mb-6">
+            {/* Tax Number Display with Help Icon */}
+            <div className="mb-6 relative">
               <p className="text-gray-400 mb-2">Your Tax Number</p>
-              <p className="bg-gray-900 text-white p-3 rounded-md border border-gray-800">
-                {randomTaxNumber}
-              </p>
+              <div className="flex items-center">
+                <p className="bg-gray-900 text-white p-3 rounded-md border border-gray-800 flex-grow">
+                  {randomTaxNumber}
+                </p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="ml-2 rounded-full bg-transparent"
+                  onClick={() => setIsVideoOpen(true)}
+                >
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center">
+                    <HelpCircle className="h-4 w-4 text-white" />
+                  </div>
+                </Button>
+              </div>
             </div>
+            
+            {/* Video Player */}
+            <VideoPlayer
+              videoSrc="/src/data/Tax_advice.mp4"
+              isOpen={isVideoOpen}
+              onClose={() => setIsVideoOpen(false)}
+            />
             
             {/* Retrieve Tax Information Button */}
             <Button 

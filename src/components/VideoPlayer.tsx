@@ -15,6 +15,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoSrc, isOpen, onClose }) 
 
   useEffect(() => {
     if (isOpen && videoRef.current) {
+      videoRef.current.muted = false; // Ensure video is unmuted
       videoRef.current.play().catch(err => {
         console.error("Error playing video:", err);
       });
@@ -58,6 +59,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoSrc, isOpen, onClose }) 
             autoPlay
             onLoadedData={handleVideoLoaded}
             preload="auto"
+            muted={false} // Ensure video is unmuted by default
           />
         </div>
       </div>
