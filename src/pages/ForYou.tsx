@@ -15,6 +15,12 @@ import ForYouMiniChart from "@/components/ForYouMiniChart";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import speechAudio from "@/data/speech.mp3";
+import VideoPlayer from "@/components/VideoPlayer";
+
+// Import video files
+import stocksCheckVideo from "@/data/Avatar_AI_stocks_check.mp4";
+import longTermGainsVideo from "@/data/Avatar_long_term_gains.mp4";
+import seriousVideo from "@/data/Avatar_serious_Video.mp4";
 
 const ForYou = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -22,6 +28,8 @@ const ForYou = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(120); // Default 2 minutes in seconds
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
+  const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
@@ -62,7 +70,7 @@ const ForYou = () => {
     };
   }, []);
   
-  // Carousel items with background images
+  // Carousel items with background images and videos
   const carouselItems = [
     {
       title: "Investment Tips",
@@ -70,12 +78,14 @@ const ForYou = () => {
       color: "from-blue-600 to-blue-800",
       image: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7?auto=format&fit=crop&q=80",
       link: "https://support.traderepublic.com/en-nl/1687-The-Basics-of-Trading-and-Financial-Markets",
+      video: stocksCheckVideo,
     },
     {
       title: "Market News",
       description: "Stay updated with the latest market trends and news",
       color: "from-green-600 to-green-800",
       image: "/lovable-uploads/c05b3384-fced-4625-9285-717f66bb188f.png",
+      video: longTermGainsVideo,
     },
     {
       title: "Save More",
@@ -83,6 +93,7 @@ const ForYou = () => {
       color: "from-purple-600 to-purple-800",
       image: "/lovable-uploads/7eeb967f-3956-4509-b75f-aa8a7565917b.png",
       link: "https://traderepublic.com/de-de#save-now",
+      video: seriousVideo,
     },
     {
       title: "Tipp of the Day",
@@ -192,6 +203,15 @@ const ForYou = () => {
     
     // Open the chat window
     setIsChatOpen(true);
+  };
+
+  // Handle carousel item click for video playback
+  const handleCarouselItemClick = (index: number) => {
+    // Only handle video playback for the first three items
+    if (index <= 2 && carouselItems[index].video) {
+      setSelectedVideo(carouselItems[index].video);
+      setIsVideoPlayerOpen(true);
+    }
   };
 
   // Format seconds to mm:ss
@@ -356,19 +376,26 @@ const ForYou = () => {
                     <div 
                       className={cn(
                         "w-full h-full rounded-xl flex flex-col justify-end p-6 bg-cover bg-center",
-                        `bg-gradient-to-br ${item.color}`
+                        `bg-gradient-to-br ${item.color}`,
+                        index <= 2 && item.video ? "cursor-pointer" : ""
                       )}
                       style={{
                         backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.8)), url(${item.image})`,
                       }}
+                      onClick={() => index <= 2 && handleCarouselItemClick(index)}
                     >
                       <h3 className="text-2xl font-bold text-white mb-2">{item.title}</h3>
                       <p className="text-white/90 mb-4">{item.description}</p>
-                      {item.link ? (
+                      {index <= 2 && item.video ? (
+                        <Button variant="outline" className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border-white/30 w-full md:w-auto">
+                          Play Video
+                          <Play size={16} className="ml-2" />
+                        </Button>
+                      ) : item.link ? (
                         <a href={item.link} target="_blank" rel="noopener noreferrer">
                           <Button variant="outline" className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border-white/30 w-full md:w-auto">
                             Learn More
-                            <ExternalLink size={16} />
+                            <ExternalLink size={16} className="ml-2" />
                           </Button>
                         </a>
                       ) : (
@@ -433,6 +460,13 @@ const ForYou = () => {
       
       {/* Chat Popup */}
       <ChatPopup isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      
+      {/* Video Player */}
+      <VideoPlayer 
+        videoSrc={selectedVideo || ''} 
+        isOpen={isVideoPlayerOpen} 
+        onClose={() => setIsVideoPlayerOpen(false)} 
+      />
     </div>
   );
 };
