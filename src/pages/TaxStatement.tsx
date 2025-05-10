@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, FileCheck, HelpCircle } from "lucide-react";
+import { Loader2, ArrowLeft, FileCheck, HelpCircle, Check, X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import ProfileMenu from "@/components/ProfileMenu";
@@ -29,6 +28,7 @@ const TaxStatement = () => {
   const [professionalExpenses, setProfessionalExpenses] = useState<any[]>([]);
   const [totalProfessionalExpenses, setTotalProfessionalExpenses] = useState<number>(0);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
+  const [workExpenseStatus, setWorkExpenseStatus] = useState<{[key: string]: boolean | null}>({});
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -43,11 +43,27 @@ const TaxStatement = () => {
        transaction.category === 'Other')
     );
     
-    // Calculate total professional expenses
-    const totalWorkExpenses = workExpenses.reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
+    // Process each expense to modify the name if it contains 'work laptop'
+    const processedExpenses = workExpenses.map(expense => {
+      const updatedExpense = {...expense};
+      if (updatedExpense.name.toLowerCase().includes('work laptop')) {
+        updatedExpense.name = 'Laptop';
+      }
+      return updatedExpense;
+    });
     
-    setProfessionalExpenses(workExpenses);
+    // Calculate total professional expenses
+    const totalWorkExpenses = processedExpenses.reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
+    
+    setProfessionalExpenses(processedExpenses);
     setTotalProfessionalExpenses(totalWorkExpenses);
+    
+    // Initialize work expense status dictionary
+    const initialWorkStatus: {[key: string]: boolean | null} = {};
+    processedExpenses.forEach(expense => {
+      initialWorkStatus[expense.id] = null;
+    });
+    setWorkExpenseStatus(initialWorkStatus);
   }, []);
   
   const handleRetrieveTaxInfo = () => {
@@ -78,6 +94,20 @@ const TaxStatement = () => {
         description: "Your tax statement has been successfully submitted for review.",
       });
     }, 1500);
+  };
+  
+  const handleWorkStatusChange = (expenseId: string, isWork: boolean) => {
+    setWorkExpenseStatus(prev => ({
+      ...prev,
+      [expenseId]: isWork
+    }));
+    
+    toast({
+      title: isWork ? "Marked as work expense" : "Marked as personal expense",
+      description: isWork ? 
+        "This expense will be included in your tax deductions." : 
+        "This expense will not be included in your tax deductions.",
+    });
   };
   
   return (
@@ -177,8 +207,35 @@ const TaxStatement = () => {
                     <TableBody>
                       {professionalExpenses.map((expense) => (
                         <TableRow key={expense.id} className="border-gray-800">
-                          <TableCell className="text-white py-2">{expense.name}</TableCell>
-                          <TableCell className="text-red-400 text-right py-2">
+                          <TableCell className="text-white py-2">
+                            <div className="flex items-center justify-between">
+                              <div>{expense.name}</div>
+                              {expense.name === 'Laptop' && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-gray-400 text-xs">Work?</span>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className={`rounded-full h-5 w-5 p-0 ${workExpenseStatus[expense.id] === true ? 'bg-green-500/20 text-green-500' : 'bg-gray-800 text-gray-400'}`}
+                                      onClick={() => handleWorkStatusChange(expense.id, true)}
+                                    >
+                                      <Check className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost" 
+                                      size="icon"
+                                      className={`rounded-full h-5 w-5 p-0 ${workExpenseStatus[expense.id] === false ? 'bg-red-500/20 text-red-500' : 'bg-gray-800 text-gray-400'}`}
+                                      onClick={() => handleWorkStatusChange(expense.id, false)}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className={`text-right py-2 ${expense.name === 'Laptop' ? 'text-red-400/70' : 'text-red-400'}`}>
                             {Math.abs(expense.amount).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
                           </TableCell>
                         </TableRow>
