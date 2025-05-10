@@ -123,6 +123,14 @@ const Cash = () => {
                           {transaction.name === "Work Laptop" && (
                             <div className="mt-2 mb-2 bg-gray-800/70 p-3 rounded border border-gray-700 text-sm">
                               <div className="flex items-start">
+                                <Avatar className="h-8 w-8 mr-3 mt-0.5 flex-shrink-0">
+                                  <AvatarImage 
+                                    src="https://assets.weforum.org/author/image/FEl5eYCwOvvIK65Uc9cYIIHnsS-lQatkhEXU_aLvpzw.jpg" 
+                                    alt="Christine Lagarde"
+                                    className="object-cover" 
+                                  />
+                                  <AvatarFallback className="bg-purple-100 text-purple-800">CL</AvatarFallback>
+                                </Avatar>
                                 <div className="flex-1">
                                   <p className="text-gray-300 text-xs">
                                     In case item is related to your Work, please confirm and upload the invoice. 
@@ -137,17 +145,17 @@ const Cash = () => {
                                       <Button 
                                         variant="outline"
                                         size="sm"
-                                        className="h-7 px-2 py-1 bg-transparent border border-gray-600 hover:bg-gray-700"
+                                        className="h-6 px-1.5 py-0 bg-transparent border border-gray-600 hover:bg-gray-700"
                                         onClick={() => setShowWorkLaptopNotification(false)}
                                       >
-                                        <X size={14} className="text-gray-400" />
+                                        <X size={12} className="text-gray-400" />
                                       </Button>
                                       <Button
                                         size="sm"
-                                        className="h-7 px-2 py-1 bg-blue-600 hover:bg-blue-700"
+                                        className="h-6 px-1.5 py-0 bg-blue-600 hover:bg-blue-700 text-xs"
                                         onClick={handleAddInvoice}
                                       >
-                                        <Check size={14} className="mr-1" /> Confirm and Upload Invoice
+                                        <Check size={12} className="mr-1" /> Upload Invoice
                                       </Button>
                                     </div>
                                   </div>
