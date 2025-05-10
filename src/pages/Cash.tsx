@@ -125,8 +125,8 @@ const Cash = () => {
                               <div className="flex items-start">
                                 <div className="flex-1">
                                   <p className="text-gray-300 text-xs">
-                                    In case item is related to your Work, please confirm and upload invoice. 
-                                    That way costs could be claimed back through the tax return procedure.
+                                    In case item is related to your Work, please confirm and upload the invoice. 
+                                    That way, costs could be claimed back through the tax return procedure.
                                   </p>
                                   <div className="flex justify-between items-center mt-2">
                                     <span className="text-gray-400 text-xs">
