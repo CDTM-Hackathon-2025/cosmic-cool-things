@@ -102,28 +102,30 @@ const TaxStatement = () => {
                 >
                   <ArrowLeft className="h-4 w-4 text-white" />
                 </Button>
-                <h1 className="text-3xl font-bold text-white">Tax Statement</h1>
+                <div className="flex items-center">
+                  <h1 className="text-3xl font-bold text-white">Tax Statement</h1>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="ml-2 rounded-full bg-transparent"
+                    onClick={() => setIsVideoOpen(true)}
+                  >
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center">
+                      <HelpCircle className="h-4 w-4 text-white" />
+                    </div>
+                  </Button>
+                </div>
               </div>
               <ProfileMenu />
             </div>
             
-            {/* Tax Number Display with Help Icon */}
+            {/* Tax Number Display */}
             <div className="mb-6 relative">
               <p className="text-gray-400 mb-2">Your Tax Number</p>
               <div className="flex items-center">
                 <p className="bg-gray-900 text-white p-3 rounded-md border border-gray-800 flex-grow">
                   {randomTaxNumber}
                 </p>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="ml-2 rounded-full bg-transparent"
-                  onClick={() => setIsVideoOpen(true)}
-                >
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center">
-                    <HelpCircle className="h-4 w-4 text-white" />
-                  </div>
-                </Button>
               </div>
             </div>
             
