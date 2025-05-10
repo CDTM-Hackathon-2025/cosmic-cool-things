@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 const TaxStatement = () => {
   // Generate random 8-digit tax number
@@ -130,8 +131,16 @@ const TaxStatement = () => {
             
             {/* Professional Expenditures Section - Always visible */}
             <Card className="mb-6 bg-gray-900 border-gray-800">
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-3 flex flex-row justify-between items-center">
                 <CardTitle className="text-white text-lg">Professional Expenditures</CardTitle>
+                <Avatar className="h-10 w-10">
+                  <AvatarImage 
+                    src="https://assets.weforum.org/author/image/FEl5eYCwOvvIK65Uc9cYIIHnsS-lQatkhEXU_aLvpzw.jpg" 
+                    alt="Christine Lagarde"
+                    className="object-cover" 
+                  />
+                  <AvatarFallback className="bg-purple-100 text-purple-800">CL</AvatarFallback>
+                </Avatar>
               </CardHeader>
               <CardContent className="pt-0">
                 {professionalExpenses.length > 0 ? (
