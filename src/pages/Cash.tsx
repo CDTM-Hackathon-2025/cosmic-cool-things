@@ -147,7 +147,7 @@ const Cash = () => {
                                         className="h-7 px-2 py-1 bg-blue-600 hover:bg-blue-700"
                                         onClick={handleAddInvoice}
                                       >
-                                        <Check size={14} className="mr-1" /> Upload Invoice
+                                        <Check size={14} className="mr-1" /> Confirm and Upload Invoice
                                       </Button>
                                     </div>
                                   </div>
