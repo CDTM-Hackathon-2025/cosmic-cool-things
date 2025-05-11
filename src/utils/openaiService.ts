@@ -1,3 +1,4 @@
+
 import { chatContextData } from "@/data/chat_data";
 import { voiceContextData } from "@/data/voice_data";
 import { supabase } from "@/integrations/supabase/client";
@@ -177,9 +178,6 @@ async function sendOpenAIRequest(
     or "Here's a chart of the stock prices to help you visualize the differences".`;
   }
   
-  console.log("System Prompt:", systemPrompt);
-  console.log("Is stock request:", isStockRequest);
-  
   const messages: ChatMessage[] = [
     {
       role: "system",
@@ -228,11 +226,39 @@ function getFallbackResponse(userMessage: string): string {
   }
 }
 
-// Helper function to detect iOS - fixed to avoid TypeScript error with MSStream
+// Helper function to detect iOS
 export function isIOSDevice(): boolean {
   // Use a safer check that doesn't rely on MSStream property
   return /iPad|iPhone|iPod/.test(navigator.userAgent);
 }
+
+// Improved audio recording and processing for iOS 
+const normalizeAudioFormat = (blob: Blob, isIOS: boolean): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    // For iOS, we need to ensure audio is properly formatted
+    if (isIOS) {
+      console.log("iOS device detected, normalizing audio format");
+      
+      // Create a proper audio extension - iOS typically records in m4a format
+      const fileName = "recording.m4a";
+      
+      // Convert to proper audio format for Whisper API
+      const properBlob = new Blob([blob], { 
+        type: 'audio/mp4' // Use proper MIME type for iOS
+      });
+      
+      console.log(`Normalized iOS audio: type=${properBlob.type}, size=${properBlob.size} bytes`);
+      resolve(properBlob);
+    } else {
+      // For other platforms, ensure webm format
+      const properBlob = new Blob([blob], { 
+        type: 'audio/webm' 
+      });
+      console.log(`Audio for non-iOS: type=${properBlob.type}, size=${properBlob.size} bytes`);
+      resolve(properBlob);
+    }
+  });
+};
 
 // Speech-to-text function using voice_data context
 export async function speechToText(audioBlob: Blob): Promise<string> {
@@ -243,13 +269,21 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
   }
   
   console.log("Using voice context for speech-to-text operation");
-  console.log(`Audio MIME type before sending: ${audioBlob.type}`);
+  console.log(`Original audio MIME type: ${audioBlob.type}`);
+  
+  // Check if this is an iOS device and normalize the audio format
+  const isIOS = isIOSDevice();
+  const normalizedBlob = await normalizeAudioFormat(audioBlob, isIOS);
+  
+  console.log(`Normalized audio MIME type: ${normalizedBlob.type}`);
   
   const formData = new FormData();
   
-  // Use a consistent file extension regardless of device type
-  formData.append("file", audioBlob, "recording.mp3");
+  // Use a file extension that matches the audio type
+  const fileExtension = isIOS ? "m4a" : "webm";
+  formData.append("file", normalizedBlob, `recording.${fileExtension}`);
   formData.append("model", "whisper-1");
+  formData.append("language", "en"); // Explicitly specify language for better results
   
   const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
@@ -266,6 +300,7 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
   }
   
   const data = await response.json();
+  console.log("Transcription result:", data.text);
   return data.text;
 }
 

@@ -53,11 +53,8 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
   useEffect(() => {
     if (isOpen && !keysLoaded) {
       const loadKeys = async () => {
-        console.log("Chat opened, fetching API keys...");
         try {
           const keys = await fetchAPIKeys();
-          console.log("API keys loaded:", keys.openAI_KEY ? "OpenAI key available" : "No OpenAI key", 
-                                        keys.mistral_KEY ? "Mistral key available" : "No Mistral key");
           setKeysLoaded(true);
         } catch (error) {
           console.error("Error loading API keys:", error);
@@ -255,7 +252,17 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
   
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Request higher quality audio - important for better speech recognition
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          // Try to request higher sample rate for better quality
+          sampleRate: 44100,
+          channelCount: 1,
+        } 
+      });
       
       // Configure MediaRecorder based on platform
       let options = {};
@@ -281,7 +288,7 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
       };
       
       mediaRecorder.onstop = async () => {
-        // Combine audio chunks into a single blob with proper MIME type
+        // Combine audio chunks into a single blob 
         const audioType = isIOS ? 'audio/mp4' : 'audio/webm';
         const audioBlob = new Blob(audioChunksRef.current, { type: audioType });
         console.log(`Recording completed. Blob type: ${audioBlob.type}, size: ${audioBlob.size} bytes`);
@@ -311,7 +318,8 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
         }
       };
       
-      mediaRecorder.start();
+      // Set longer timeSlice for better quality audio chunks (300ms instead of default)
+      mediaRecorder.start(300);
       setIsRecording(true);
       
     } catch (error) {
