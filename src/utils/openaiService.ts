@@ -227,30 +227,7 @@ function getFallbackResponse(userMessage: string): string {
   }
 }
 
-// Helper function to detect iOS devices correctly
-export function isIOSDevice(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  
-  const userAgent = navigator.userAgent || '';
-  const iPad = Boolean(userAgent.match(/iPad/i));
-  const iPhone = Boolean(userAgent.match(/iPhone/i));
-  const iPod = Boolean(userAgent.match(/iPod/i));
-  
-  // More comprehensive iOS detection including iPad with desktop mode
-  const isIOS = iPad || iPhone || iPod || 
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  
-  console.log("iOS detection result:", isIOS, "User agent:", userAgent);
-  return isIOS;
-}
-
-// Get the proper MIME type for iOS audio recordings
-function getIOSAudioMimeType(): string {
-  // iOS typically uses AAC codec and m4a container format
-  return 'audio/m4a';
-}
-
-// Audio processing functions for speech-to-text with iOS compatibility
+// Standard speech-to-text function that follows OpenAI's recommended approach
 export async function speechToText(audioBlob: Blob): Promise<string> {
   const { openAI_KEY } = await fetchAPIKeys();
   
@@ -258,31 +235,15 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
     throw new Error("OpenAI API key is not set for speech-to-text conversion.");
   }
   
-  console.log("Starting speech-to-text conversion with blob type:", audioBlob.type);
-  console.log("Audio blob size:", audioBlob.size, "bytes");
+  console.log("Starting speech-to-text conversion with blob size:", audioBlob.size, "bytes");
   
-  // Check if this is an iOS device
-  const isIOS = isIOSDevice();
-  console.log("Device is iOS:", isIOS);
-
-  // Prepare the form data
   const formData = new FormData();
-  
-  // Use the correct file extension based on device type
-  const fileExtension = isIOS ? "m4a" : "webm";
-  
-  // Log the audio blob details
-  console.log(`Using ${isIOS ? "iOS" : "non-iOS"} audio format: ${audioBlob.type}, size: ${audioBlob.size}`);
-  
-  formData.append("file", audioBlob, `recording.${fileExtension}`);
+  formData.append("file", audioBlob, "audio.webm");
   formData.append("model", "whisper-1");
-  
-  // Additional parameters for better transcription quality
   formData.append("language", "en");
-  formData.append("response_format", "json");
   
   try {
-    console.log("Sending audio to Whisper API...");
+    console.log("Sending audio to OpenAI Whisper API...");
     const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
       headers: {
@@ -293,8 +254,8 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Whisper API error response:", errorText);
-      throw new Error(`OpenAI Whisper API error: ${response.status} ${response.statusText} - ${errorText}`);
+      console.error("OpenAI Whisper API error response:", errorText);
+      throw new Error(`OpenAI Whisper API error: ${response.status} ${response.statusText}`);
     }
     
     const data = await response.json();

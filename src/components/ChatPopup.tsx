@@ -10,8 +10,7 @@ import {
   sendVoiceRequest, 
   speechToText, 
   textToSpeech, 
-  fetchAPIKeys, 
-  isIOSDevice 
+  fetchAPIKeys 
 } from "@/utils/openaiService";
 import { useToast } from "@/hooks/use-toast";
 import StockChart from "@/components/StockChart";
@@ -48,7 +47,6 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
   
   const isMobile = useIsMobile();
   const { toast } = useToast();
-  const isIOS = isIOSDevice();
 
   // Predefined questions
   const quickQuestions = [
@@ -258,158 +256,112 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
     }
   };
   
-  // Completely rewritten iOS-compatible recording function
+  // Standard approach to recording audio
   const startRecording = async () => {
     try {
-      console.log(`Starting recording on ${isIOS ? "iOS" : "non-iOS"} device`);
+      console.log("Starting audio recording with standard approach");
       
-      // Release any existing stream
+      // Stop any existing recording session
       if (audioStreamRef.current) {
         audioStreamRef.current.getTracks().forEach(track => track.stop());
       }
       
-      // Request microphone access with optimized constraints for iOS
-      const constraints: MediaStreamConstraints = {
-        audio: isIOS ? 
-          // iOS specific constraints - simpler is better
-          { 
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false 
-          } : 
-          // More detailed constraints for other platforms
-          {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
-      };
+      // Request microphone access with standard constraints
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: true 
+      });
       
-      console.log("Requesting microphone with constraints:", JSON.stringify(constraints));
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       audioStreamRef.current = stream;
-      
-      console.log("Microphone access granted successfully");
       
       // Reset audio chunks
       audioChunksRef.current = [];
       
-      // Create appropriate MediaRecorder based on platform
-      try {
-        // Try to detect supported MIME types
-        let mimeType = 'audio/webm';
+      // Use standard media recorder with browser-supported mime types
+      let mimeType = 'audio/webm';
+      
+      // Check for browser support
+      if (MediaRecorder.isTypeSupported('audio/webm')) {
+        mimeType = 'audio/webm';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+      } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+        mimeType = 'audio/ogg';
+      }
+      
+      console.log(`Creating MediaRecorder with mime type: ${mimeType}`);
+      
+      const recorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = recorder;
+      
+      recorder.addEventListener("dataavailable", (event) => {
+        if (event.data.size > 0) {
+          console.log(`Audio data received: ${event.data.size} bytes`);
+          audioChunksRef.current.push(event.data);
+        }
+      });
+      
+      recorder.addEventListener("stop", async () => {
+        console.log("Recording stopped");
         
-        if (isIOS) {
-          // iOS generally supports these formats
-          const iosMimeTypes = ['audio/mp4', 'audio/aac', 'audio/m4a'];
-          for (const type of iosMimeTypes) {
-            if (MediaRecorder.isTypeSupported(type)) {
-              mimeType = type;
-              console.log(`Found supported iOS MIME type: ${mimeType}`);
-              break;
-            }
-          }
-        } else {
-          // Non-iOS platforms usually support these
-          const standardMimeTypes = ['audio/webm', 'audio/ogg', 'audio/wav'];
-          for (const type of standardMimeTypes) {
-            if (MediaRecorder.isTypeSupported(type)) {
-              mimeType = type;
-              console.log(`Found supported standard MIME type: ${mimeType}`);
-              break;
-            }
-          }
+        if (audioChunksRef.current.length === 0) {
+          console.error("No audio data collected");
+          toast({
+            title: "Recording Failed",
+            description: "No audio was captured. Please check your microphone permissions and try again.",
+          });
+          setIsLoading(false);
+          return;
         }
         
-        console.log(`Creating MediaRecorder with mime type: ${mimeType}`);
+        // Create a blob from the audio chunks with the appropriate mime type
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        console.log(`Recording completed. Blob size: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
         
-        // Create recorder with detected MIME type
-        const recorder = new MediaRecorder(stream, {
-          mimeType: mimeType,
-          audioBitsPerSecond: isIOS ? 64000 : 128000 // Lower bitrate for iOS
-        });
+        if (audioBlob.size < 1000) {
+          console.warn("Warning: Audio recording is too small, may not contain speech");
+          toast({
+            title: "Recording Too Short",
+            description: "Please record for a longer duration and speak clearly.",
+          });
+          setIsLoading(false);
+          return;
+        }
         
-        mediaRecorderRef.current = recorder;
+        setIsLoading(true);
         
-        recorder.addEventListener("dataavailable", (event) => {
-          if (event.data.size > 0) {
-            console.log(`Audio data chunk received: ${event.data.size} bytes, type: ${event.data.type}`);
-            audioChunksRef.current.push(event.data);
-          }
-        });
-        
-        recorder.addEventListener("stop", async () => {
-          console.log("MediaRecorder stopped");
+        try {
+          // Use the standard speechToText function
+          const transcribedText = await speechToText(audioBlob);
           
-          if (audioChunksRef.current.length === 0) {
-            console.error("No audio data collected");
+          if (transcribedText && transcribedText.trim()) {
+            console.log("Transcription successful:", transcribedText);
+            handleVoiceMessage(transcribedText);
+          } else {
+            console.warn("Empty transcription received");
             toast({
-              title: "Recording Failed",
-              description: "No audio was captured. Please check your microphone permissions and try again.",
-            });
-            setIsLoading(false);
-            return;
-          }
-          
-          // Create a blob from the audio chunks
-          const mimeType = isIOS ? 'audio/m4a' : 'audio/webm';
-          console.log(`Creating final audio blob with type: ${mimeType}`);
-          
-          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-          console.log(`Recording completed. Blob size: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
-          
-          if (audioBlob.size < 1000) {
-            console.warn("Warning: Audio recording is too small, may not contain speech");
-            toast({
-              title: "Recording Failed",
-              description: "The recording was too short. Please try again and speak clearly.",
-            });
-            setIsLoading(false);
-            return;
-          }
-          
-          setIsLoading(true);
-          
-          try {
-            console.log("Sending audio to speech-to-text processing...");
-            // The speechToText function will handle iOS-specific format issues
-            const transcribedText = await speechToText(audioBlob);
-            
-            if (transcribedText && transcribedText.trim()) {
-              console.log("Transcription successful:", transcribedText);
-              handleVoiceMessage(transcribedText);
-            } else {
-              console.warn("Empty transcription received");
-              toast({
-                title: "Could not detect speech",
-                description: "Please try again speaking clearly into the microphone",
-              });
-              setIsLoading(false);
-            }
-          } catch (error) {
-            console.error("Speech recognition failed:", error);
-            toast({
-              title: "Speech Recognition Failed",
-              description: "Please check your microphone and try again.",
+              title: "Speech Not Detected",
+              description: "Please try again and speak clearly into your microphone.",
             });
             setIsLoading(false);
           }
-        });
-        
-        console.log("Starting MediaRecorder");
-        recorder.start(1000); // Use 1-second chunks for more frequent data collection
-        setIsRecording(true);
-      } catch (error) {
-        console.error("Error creating MediaRecorder:", error);
-        toast({
-          title: "Recording Not Supported",
-          description: "Your device doesn't support the required audio recording features.",
-        });
-      }
+        } catch (error) {
+          console.error("Speech recognition failed:", error);
+          toast({
+            title: "Speech Recognition Failed",
+            description: "Check your microphone and try again.",
+          });
+          setIsLoading(false);
+        }
+      });
+      
+      recorder.start();
+      setIsRecording(true);
+      console.log("MediaRecorder started successfully");
+      
     } catch (error) {
       console.error("Error accessing microphone:", error);
       toast({
-        title: "Microphone Access Denied",
+        title: "Microphone Access Failed",
         description: "Please allow microphone access in your browser settings and try again.",
       });
     }
@@ -418,20 +370,21 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
   const stopRecording = () => {
     console.log("Stopping recording...");
     
-    if (mediaRecorderRef.current && isRecording) {
-      console.log("Stopping MediaRecorder");
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      
-      // Stop and release the audio stream
-      if (audioStreamRef.current) {
-        audioStreamRef.current.getTracks().forEach(track => {
-          console.log(`Stopping audio track: ${track.kind}, ID: ${track.id}`);
-          track.stop();
-        });
-        audioStreamRef.current = null;
-      }
+      console.log("MediaRecorder stopped");
     }
+    
+    // Always release the audio stream
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(track => {
+        console.log(`Stopping audio track: ${track.kind}`);
+        track.stop();
+      });
+      audioStreamRef.current = null;
+    }
+    
+    setIsRecording(false);
   };
   
   const stopAudio = () => {
