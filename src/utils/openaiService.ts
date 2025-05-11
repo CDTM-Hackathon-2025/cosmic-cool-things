@@ -240,26 +240,67 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
   // Log that we're using voice_data context for this operation
   console.log("Using voice context for speech-to-text operation");
   
+  // Check if running on iOS and handle file format accordingly
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  console.log("Device detection - iOS:", isIOS);
+  
   const formData = new FormData();
-  formData.append("file", audioBlob, "recording.webm");
-  formData.append("model", "whisper-1");
-  // Can't add system prompt to Whisper API directly, but we note that we're 
-  // using this in the voice context flow
   
-  const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${openAI_KEY}`
-    },
-    body: formData
-  });
-  
-  if (!response.ok) {
-    throw new Error(`OpenAI Whisper API error: ${response.status} ${response.statusText}`);
+  // For iOS devices, we need to ensure the audio is properly formatted
+  if (isIOS) {
+    console.log("Using iOS-specific audio handling");
+    
+    // Check the blob type and make sure it's acceptable for the API
+    console.log("Original audio blob type:", audioBlob.type);
+    
+    // iOS may record as audio/mp4 or other formats - convert to proper filename extension
+    let filename = "recording.webm";
+    if (audioBlob.type.includes("mp4")) {
+      filename = "recording.mp4";
+    } else if (audioBlob.type.includes("m4a")) {
+      filename = "recording.m4a";
+    }
+    
+    // Append with the appropriate filename to help the API identify the format
+    formData.append("file", audioBlob, filename);
+    console.log("Appended audio with filename:", filename);
+  } else {
+    // For non-iOS devices, use standard approach
+    formData.append("file", audioBlob, "recording.webm");
   }
   
-  const data = await response.json();
-  return data.text;
+  formData.append("model", "whisper-1");
+  
+  // Add debug logs for formData content
+  console.log("FormData created with file and model");
+  
+  try {
+    console.log("Sending audio to OpenAI Whisper API...");
+    const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${openAI_KEY}`
+      },
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("OpenAI Whisper API error response:", errorText);
+      throw new Error(`OpenAI Whisper API error: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log("Successfully transcribed audio");
+    return data.text;
+  } catch (error) {
+    console.error("Detailed error in speech-to-text:", error);
+    // Re-throw with more specific message for iOS users
+    if (isIOS) {
+      throw new Error("iOS speech recognition failed. Please check your OpenAI API key and make sure your microphone permissions are enabled. If the problem persists, try using the text input instead.");
+    }
+    throw error;
+  }
 }
 
 // Text-to-speech function using voice preferences from voice_data
