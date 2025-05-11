@@ -228,6 +228,66 @@ function getFallbackResponse(userMessage: string): string {
   }
 }
 
+// Display diagnostic info on screen for iOS-specific debugging
+export function displayIOSError(error: any): void {
+  const errorContainer = document.createElement('div');
+  errorContainer.style.position = 'fixed';
+  errorContainer.style.bottom = '70px';
+  errorContainer.style.left = '10px';
+  errorContainer.style.right = '10px';
+  errorContainer.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+  errorContainer.style.color = 'red';
+  errorContainer.style.padding = '10px';
+  errorContainer.style.borderRadius = '5px';
+  errorContainer.style.zIndex = '9999';
+  errorContainer.style.fontSize = '12px';
+  errorContainer.style.maxHeight = '30%';
+  errorContainer.style.overflow = 'auto';
+  
+  // Extract useful information from error
+  let errorMessage = 'iOS Speech Recognition Error:\n';
+  
+  if (typeof error === 'object' && error !== null) {
+    errorMessage += `Type: ${error.name || 'Unknown'}\n`;
+    errorMessage += `Message: ${error.message || 'No message'}\n`;
+    
+    if (error.response) {
+      errorMessage += `Status: ${error.response.status}\n`;
+      errorMessage += `Response: ${JSON.stringify(error.response.data || {})}\n`;
+    }
+    
+    if (error.stack) {
+      errorMessage += `Stack: ${error.stack}\n`;
+    }
+  } else {
+    errorMessage += String(error);
+  }
+  
+  errorContainer.textContent = errorMessage;
+  
+  // Add a close button
+  const closeButton = document.createElement('button');
+  closeButton.textContent = 'Close';
+  closeButton.style.marginTop = '10px';
+  closeButton.style.padding = '5px';
+  closeButton.style.background = 'white';
+  closeButton.style.border = '1px solid #ccc';
+  closeButton.style.borderRadius = '3px';
+  closeButton.onclick = () => document.body.removeChild(errorContainer);
+  
+  errorContainer.appendChild(document.createElement('br'));
+  errorContainer.appendChild(closeButton);
+  
+  document.body.appendChild(errorContainer);
+  
+  // Remove after 60 seconds if not closed manually
+  setTimeout(() => {
+    if (document.body.contains(errorContainer)) {
+      document.body.removeChild(errorContainer);
+    }
+  }, 60000);
+}
+
 // Speech-to-text function using voice_data context
 export async function speechToText(audioBlob: Blob): Promise<string> {
   const { openAI_KEY } = await fetchAPIKeys();
@@ -239,111 +299,128 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
   // Log that we're using voice_data context for this operation
   console.log("Using voice context for speech-to-text operation");
   
-  // Enhanced iOS detection
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  // Enhanced iOS detection - more thorough check
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   console.log("Device detection - iOS:", isIOS, "User Agent:", navigator.userAgent);
   
   const formData = new FormData();
   
   // For iOS devices, we need to ensure the audio is properly formatted
   if (isIOS) {
-    console.log("Using iOS-specific audio handling");
-    
-    // Check the blob type and make sure it's acceptable for the API
+    console.log("iOS detected - Using iOS-specific audio handling");
     console.log("Original audio blob type:", audioBlob.type);
     console.log("Audio blob size:", audioBlob.size, "bytes");
     
     try {
-      // Create a new blob with explicit mime type if needed
+      // Create a new blob with explicit mime type
+      const audioType = audioBlob.type || '';
+      console.log("Original audio MIME type:", audioType);
+      
+      // Determine best audio format based on what iOS likely recorded
       let processedBlob = audioBlob;
+      let filename = "recording.m4a"; // Default for iOS
       
-      // If the blob type is empty or not recognized, try to set it explicitly
-      if (!audioBlob.type || audioBlob.type === "audio/mp4" || audioBlob.type === "") {
-        console.log("Setting explicit MIME type for iOS audio");
-        processedBlob = new Blob([audioBlob], { type: 'audio/m4a' });
-      }
-      
-      // iOS may record as audio/mp4 or other formats - determine appropriate filename extension
-      let filename = "recording.m4a"; // Default to m4a for iOS
-      
-      // Check specific types to determine best filename
-      if (processedBlob.type.includes("webm")) {
+      // Check specific types and set appropriate format
+      if (audioType.includes("webm")) {
         filename = "recording.webm";
-      } else if (processedBlob.type.includes("mp4")) {
+        console.log("Using webm format");
+      } else if (audioType.includes("mp4")) {
         filename = "recording.mp4";
+        console.log("Using mp4 format");
+      } else if (audioType === "") {
+        // If no type, iOS typically uses m4a
+        processedBlob = new Blob([audioBlob], { type: 'audio/m4a' });
+        console.log("Empty MIME type - forcing audio/m4a");
       }
       
-      console.log("Using processed blob with type:", processedBlob.type);
+      console.log("Final MIME type:", processedBlob.type || 'No MIME type (using filename extension)');
       console.log("Using filename:", filename);
       
       // Append with the appropriate filename to help the API identify the format
       formData.append("file", processedBlob, filename);
-    } catch (e) {
-      console.error("Error processing iOS audio blob:", e);
-      throw new Error(`iOS audio processing failed: ${e.message}`);
-    }
-  } else {
-    // For non-iOS devices, use standard approach
-    formData.append("file", audioBlob, "recording.webm");
-  }
-  
-  formData.append("model", "whisper-1");
-  
-  // Add debug logs for formData content
-  console.log("FormData created with file and model");
-  
-  try {
-    console.log("Sending audio to OpenAI Whisper API...");
-    
-    // Additional logging for iOS
-    if (isIOS) {
-      console.log("Making iOS-specific request to Whisper API");
-    }
-    
-    const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${openAI_KEY}`
-      },
-      body: formData
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI Whisper API error response:", errorText);
       
-      // Enhanced error handling for iOS specific issues
-      if (isIOS) {
-        console.error("iOS-specific error with status:", response.status);
+      // Add API model
+      formData.append("model", "whisper-1");
+      
+      // Add detailed logging for request preparation
+      console.log("FormData prepared with file and model");
+      console.log("Starting iOS-specific request to Whisper API...");
+      
+      // Add response format specification for iOS
+      formData.append("response_format", "json");
+      
+      // Make the API request with extra logging
+      const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${openAI_KEY}`
+        },
+        body: formData
+      });
+      
+      console.log("iOS Whisper API response status:", response.status);
+      
+      // Enhanced error handling for iOS
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("iOS Whisper API error response:", errorText);
+        
+        // Create detailed error for diagnosis
+        let errorDetail = `Status: ${response.status}, iOS audio format: ${filename}, Size: ${audioBlob.size} bytes`;
+        
         if (response.status === 400) {
-          throw new Error("The audio file format from your iOS device was not recognized. Please try recording again or use text input instead.");
+          const error = new Error(`iOS audio format error (${errorDetail}). ${errorText}`);
+          displayIOSError(error); // Show error on screen
+          throw error;
         } else if (response.status === 401) {
-          throw new Error("Authentication failed. Your OpenAI API key might be invalid or expired.");
+          const error = new Error(`Authentication failed for iOS (${errorDetail}). Your OpenAI API key might be invalid.`);
+          displayIOSError(error); // Show error on screen
+          throw error;
+        } else {
+          const error = new Error(`OpenAI Whisper API error for iOS: ${response.status} ${response.statusText} (${errorDetail}). ${errorText}`);
+          displayIOSError(error); // Show error on screen
+          throw error;
         }
       }
       
-      throw new Error(`OpenAI Whisper API error: ${response.status} ${response.statusText}`);
+      const data = await response.json();
+      console.log("Successfully transcribed iOS audio:", data);
+      return data.text;
+    } catch (error) {
+      console.error("Detailed error in iOS speech-to-text:", error);
+      displayIOSError(error); // Show error on screen
+      throw error;
     }
+  } else {
+    // Non-iOS devices - keep original implementation
+    formData.append("file", audioBlob, "recording.webm");
+    formData.append("model", "whisper-1");
     
-    const data = await response.json();
-    console.log("Successfully transcribed audio");
-    return data.text;
-  } catch (error) {
-    console.error("Detailed error in speech-to-text:", error);
-    
-    // Enhanced iOS error messages
-    if (isIOS) {
-      // Check for specific error patterns
-      const errorStr = String(error);
-      if (errorStr.includes("401")) {
-        throw new Error("iOS speech recognition failed due to authorization issues. Please check your OpenAI API key.");
-      } else if (errorStr.includes("400")) {
-        throw new Error("iOS speech recording format issue. Please ensure microphone permissions are enabled and try speaking clearly.");
-      } else {
-        throw new Error("iOS speech recognition failed. Please check your internet connection and OpenAI API key. If the problem persists, try using the text input instead.");
+    try {
+      console.log("Sending audio to OpenAI Whisper API...");
+      
+      const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${openAI_KEY}`
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("OpenAI Whisper API error response:", errorText);
+        throw new Error(`OpenAI Whisper API error: ${response.status} ${response.statusText}`);
       }
+      
+      const data = await response.json();
+      console.log("Successfully transcribed audio");
+      return data.text;
+    } catch (error) {
+      console.error("Error in speech-to-text:", error);
+      throw error;
     }
-    throw error;
   }
 }
 
