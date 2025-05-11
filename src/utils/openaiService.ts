@@ -229,6 +229,11 @@ function getFallbackResponse(userMessage: string): string {
   }
 }
 
+// Helper function to detect iOS
+export function isIOSDevice(): boolean {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
 // Speech-to-text function using voice_data context
 export async function speechToText(audioBlob: Blob): Promise<string> {
   const { openAI_KEY } = await fetchAPIKeys();
@@ -237,14 +242,14 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
     throw new Error("OpenAI API key is not set for speech-to-text conversion.");
   }
   
-  // Log that we're using voice_data context for this operation
   console.log("Using voice context for speech-to-text operation");
+  console.log(`Audio MIME type before sending: ${audioBlob.type}`);
   
   const formData = new FormData();
-  formData.append("file", audioBlob, "recording.webm");
+  
+  // Use a consistent file extension regardless of device type
+  formData.append("file", audioBlob, "recording.mp3");
   formData.append("model", "whisper-1");
-  // Can't add system prompt to Whisper API directly, but we note that we're 
-  // using this in the voice context flow
   
   const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
@@ -255,6 +260,8 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
   });
   
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Transcription error:", errorText);
     throw new Error(`OpenAI Whisper API error: ${response.status} ${response.statusText}`);
   }
   

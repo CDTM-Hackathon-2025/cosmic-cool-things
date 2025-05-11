@@ -1,10 +1,11 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Send, Volume2, VolumeX } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { sendChatRequest, sendVoiceRequest, speechToText, textToSpeech, fetchAPIKeys } from "@/utils/openaiService";
+import { sendChatRequest, sendVoiceRequest, speechToText, textToSpeech, fetchAPIKeys, isIOSDevice } from "@/utils/openaiService";
 import { useToast } from "@/hooks/use-toast";
 import StockChart from "@/components/StockChart";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -39,6 +40,7 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
   
   const isMobile = useIsMobile();
   const { toast } = useToast();
+  const isIOS = isIOSDevice();
 
   // Predefined questions
   const quickQuestions = [
@@ -255,7 +257,20 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      const mediaRecorder = new MediaRecorder(stream);
+      // Configure MediaRecorder based on platform
+      let options = {};
+      
+      if (isIOS) {
+        // Use iOS-compatible audio format
+        options = { mimeType: 'audio/mp4' };
+        console.log("Using iOS-compatible audio format: audio/mp4");
+      } else {
+        // Use standard format for other platforms
+        options = { mimeType: 'audio/webm' };
+        console.log("Using standard audio format: audio/webm");
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
       
@@ -266,8 +281,10 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
       };
       
       mediaRecorder.onstop = async () => {
-        // Combine audio chunks into a single blob
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        // Combine audio chunks into a single blob with proper MIME type
+        const audioType = isIOS ? 'audio/mp4' : 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: audioType });
+        console.log(`Recording completed. Blob type: ${audioBlob.type}, size: ${audioBlob.size} bytes`);
         
         try {
           setIsLoading(true);
