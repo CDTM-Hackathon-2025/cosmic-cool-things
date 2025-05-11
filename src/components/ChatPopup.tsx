@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Send, Volume2, VolumeX } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { sendChatRequest, sendVoiceRequest, speechToText, textToSpeech, fetchAPIKeys } from "@/utils/openaiService";
+import { sendChatRequest, sendVoiceRequest, speechToText, textToSpeech, fetchAPIKeys, displayIOSDebugInfo } from "@/utils/openaiService";
 import { useToast } from "@/hooks/use-toast";
 import StockChart from "@/components/StockChart";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -39,6 +39,10 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
   
   const isMobile = useIsMobile();
   const { toast } = useToast();
+
+  // Check if we're on an iOS device
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
   // Predefined questions
   const quickQuestions = [
@@ -255,7 +259,31 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      const mediaRecorder = new MediaRecorder(stream);
+      // Use different mime types based on device type
+      const mimeType = isIOS ? 
+        'audio/mp4' : // Use mp4 for iOS which is better supported
+        'audio/webm'; // Keep webm for other devices
+        
+      // Log the chosen audio format
+      console.log(`Recording using format: ${mimeType} on ${isIOS ? 'iOS device' : 'non-iOS device'}`);
+      if (isIOS) {
+        displayIOSDebugInfo(`Starting recording with format: ${mimeType}`);
+      }
+      
+      // Check if the browser supports the chosen mime type
+      let options = {};
+      if (MediaRecorder.isTypeSupported(mimeType)) {
+        options = { mimeType };
+        console.log(`Browser supports ${mimeType}`);
+      } else {
+        // If the device doesn't support the preferred format, let the browser choose
+        console.log(`Browser does not support ${mimeType}, using browser default`);
+        if (isIOS) {
+          displayIOSDebugInfo(`Browser does not support ${mimeType}, using default format`);
+        }
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
       
@@ -267,7 +295,13 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
       
       mediaRecorder.onstop = async () => {
         // Combine audio chunks into a single blob
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || mimeType });
+        
+        // Log the actual format we ended up with
+        console.log("Recording stopped, audio blob type:", audioBlob.type || "unknown");
+        if (isIOS) {
+          displayIOSDebugInfo(`Recording stopped, format: ${audioBlob.type || "unknown"}, size: ${audioBlob.size} bytes`);
+        }
         
         try {
           setIsLoading(true);

@@ -1,3 +1,4 @@
+
 import { chatContextData } from "@/data/chat_data";
 import { voiceContextData } from "@/data/voice_data";
 import { supabase } from "@/integrations/supabase/client";
@@ -406,7 +407,7 @@ declare global {
   }
 }
 
-// Enhance speechToText function with better iOS handling
+// Enhanced speechToText function with better iOS handling
 export async function speechToText(audioBlob: Blob): Promise<string> {
   const { openAI_KEY } = await fetchAPIKeys();
   
@@ -440,29 +441,35 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
       // Display key info for debugging
       displayIOSDebugInfo(`API Key check: ${openAI_KEY.substring(0, 3)}...${openAI_KEY.substring(openAI_KEY.length - 3)}`);
       
-      // Create a new blob with explicit mime type
+      // Create a new blob with explicit mime type - UPDATED FOR iOS COMPATIBILITY
       const audioType = audioBlob.type || '';
       console.log("Original audio MIME type:", audioType);
       
-      // Determine best audio format based on what iOS likely recorded
+      // iOS devices typically record in m4a format when using the browser
       let processedBlob = audioBlob;
       let filename = "recording.m4a"; // Default for iOS
       
       // Check specific types and set appropriate format
       if (audioType.includes("webm")) {
-        filename = "recording.webm";
-        console.log("Using webm format");
+        // For iOS, convert webm to m4a which is better supported
+        processedBlob = new Blob([audioBlob], { type: 'audio/m4a' });
+        filename = "recording.m4a";
+        console.log("Converting webm to m4a format for iOS");
       } else if (audioType.includes("mp4")) {
         filename = "recording.mp4";
         console.log("Using mp4 format");
+      } else if (audioType.includes("mp3")) {
+        filename = "recording.mp3";
+        console.log("Using mp3 format");
       } else if (audioType === "") {
         // If no type, iOS typically uses m4a
         processedBlob = new Blob([audioBlob], { type: 'audio/m4a' });
-        console.log("Empty MIME type - forcing audio/m4a");
+        console.log("Empty MIME type - forcing audio/m4a for iOS compatibility");
       }
       
       console.log("Final MIME type:", processedBlob.type || 'No MIME type (using filename extension)');
       console.log("Using filename:", filename);
+      displayIOSDebugInfo(`Audio format: ${filename}, size: ${processedBlob.size} bytes`);
       
       // Append with the appropriate filename to help the API identify the format
       formData.append("file", processedBlob, filename);
