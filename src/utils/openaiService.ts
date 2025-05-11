@@ -244,21 +244,13 @@ export function isIOSDevice(): boolean {
   return isIOS;
 }
 
-// Audio processing functions for speech-to-text
-export function normalizeAudioFormat(audioBlob: Blob, isIOS: boolean): Blob {
-  console.log(`Original audio blob: type=${audioBlob.type}, size=${audioBlob.size} bytes`);
-  
-  // Determine correct MIME type based on device
-  const mimeType = isIOS ? 'audio/mp4' : 'audio/webm';
-  
-  // Create a new blob with the correct MIME type
-  const normalizedBlob = new Blob([audioBlob], { type: mimeType });
-  console.log(`Normalized audio: type=${normalizedBlob.type}, size=${normalizedBlob.size} bytes`);
-  
-  return normalizedBlob;
+// Get the proper MIME type for iOS audio recordings
+function getIOSAudioMimeType(): string {
+  // iOS typically uses AAC codec and m4a container format
+  return 'audio/m4a';
 }
 
-// Enhanced speech-to-text function using Whisper API
+// Audio processing functions for speech-to-text with iOS compatibility
 export async function speechToText(audioBlob: Blob): Promise<string> {
   const { openAI_KEY } = await fetchAPIKeys();
   
@@ -271,22 +263,26 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
   
   // Check if this is an iOS device
   const isIOS = isIOSDevice();
-  const normalizedBlob = normalizeAudioFormat(audioBlob, isIOS);
-  
-  console.log(`Sending audio to Whisper API with MIME type: ${normalizedBlob.type}, size: ${normalizedBlob.size} bytes`);
-  
+  console.log("Device is iOS:", isIOS);
+
+  // Prepare the form data
   const formData = new FormData();
   
   // Use the correct file extension based on device type
   const fileExtension = isIOS ? "m4a" : "webm";
-  formData.append("file", normalizedBlob, `recording.${fileExtension}`);
+  
+  // Log the audio blob details
+  console.log(`Using ${isIOS ? "iOS" : "non-iOS"} audio format: ${audioBlob.type}, size: ${audioBlob.size}`);
+  
+  formData.append("file", audioBlob, `recording.${fileExtension}`);
   formData.append("model", "whisper-1");
   
-  // Set additional parameters for better transcription quality
-  formData.append("language", "en"); // Specify English for better accuracy
-  formData.append("response_format", "json"); // Ensure we get JSON response
+  // Additional parameters for better transcription quality
+  formData.append("language", "en");
+  formData.append("response_format", "json");
   
   try {
+    console.log("Sending audio to Whisper API...");
     const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
       headers: {
