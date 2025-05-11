@@ -10,7 +10,15 @@ interface ChatMessage {
 // Function to fetch API keys from Supabase
 export async function fetchAPIKeys() {
   try {
-    console.log("Fetching API keys from Supabase secrets table...");
+    // Check and log if this is running on iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
+    console.log("Device environment:", isIOS ? "iOS device detected" : "Non-iOS device", 
+                "User Agent:", navigator.userAgent);
+    
+    console.log("Starting API key fetch from Supabase");
+    
     // Fetch OpenAI key
     const { data: openaiData, error: openaiError } = await supabase
       .from('secrets')
@@ -20,8 +28,16 @@ export async function fetchAPIKeys() {
       
     if (openaiError) {
       console.error("Error fetching OpenAI key from Supabase:", openaiError.message);
+      // Display error on screen for iOS devices
+      if (isIOS) {
+        displayIOSDebugInfo(`Supabase OpenAI key fetch error: ${openaiError.message}`);
+      }
     } else {
       console.log("OpenAI key fetch result:", openaiData ? "Key found" : "No key found");
+      // Display status on screen for iOS devices
+      if (isIOS) {
+        displayIOSDebugInfo(`OpenAI key from Supabase: ${openaiData ? "Found" : "Not found"}`);
+      }
     }
     
     // Fetch Mistral key
@@ -33,26 +49,57 @@ export async function fetchAPIKeys() {
       
     if (mistralError) {
       console.error("Error fetching Mistral key from Supabase:", mistralError.message);
+      if (isIOS) {
+        displayIOSDebugInfo(`Supabase Mistral key fetch error: ${mistralError.message}`);
+      }
     } else {
       console.log("Mistral key fetch result:", mistralData ? "Key found" : "No key found");
+      if (isIOS) {
+        displayIOSDebugInfo(`Mistral key from Supabase: ${mistralData ? "Found" : "Not found"}`);
+      }
+    }
+
+    // Check localStorage as well
+    const localOpenAI = localStorage.getItem("openai-api-key");
+    const localMistral = localStorage.getItem("mistral-api-key");
+    
+    console.log("Local storage check:", 
+      localOpenAI ? "OpenAI key found in localStorage" : "No OpenAI key in localStorage",
+      localMistral ? "Mistral key found in localStorage" : "No Mistral key in localStorage");
+    
+    if (isIOS) {
+      displayIOSDebugInfo(
+        `localStorage keys: OpenAI ${localOpenAI ? "Found" : "Not found"}, Mistral ${localMistral ? "Found" : "Not found"}`
+      );
     }
 
     // Get keys from Supabase table or fallback to localStorage
     const openAI_KEY = openaiData?.text || localStorage.getItem("openai-api-key") || "";
     const mistral_KEY = mistralData?.text || localStorage.getItem("mistral-api-key") || "";
 
-    console.log("API keys loaded:", 
+    console.log("Final API keys loaded:", 
       openAI_KEY ? "OpenAI key available" : "No OpenAI key", 
       mistral_KEY ? "Mistral key available" : "No Mistral key");
+      
+    if (isIOS) {
+      displayIOSDebugInfo(`Final API keys: OpenAI ${openAI_KEY ? "Available" : "Missing"}, Mistral ${mistral_KEY ? "Available" : "Missing"}`);
+    }
 
     return { openAI_KEY, mistral_KEY };
   } catch (error) {
     console.error("Unexpected error fetching API keys:", error);
+    
+    // Check if running on iOS and display error on screen
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isIOS) {
+      displayIOSDebugInfo(`Error fetching API keys: ${error.message}`);
+    }
+    
     // Fallback to localStorage
-    return {
-      openAI_KEY: localStorage.getItem("openai-api-key") || "",
-      mistral_KEY: localStorage.getItem("mistral-api-key") || ""
-    };
+    const openAI_KEY = localStorage.getItem("openai-api-key") || "";
+    const mistral_KEY = localStorage.getItem("mistral-api-key") || "";
+    return { openAI_KEY, mistral_KEY };
   }
 }
 
@@ -288,12 +335,85 @@ export function displayIOSError(error: any): void {
   }, 60000);
 }
 
-// Speech-to-text function using voice_data context
+// Add a new function for displaying general debug info (not just errors)
+export function displayIOSDebugInfo(message: string): void {
+  const debugContainer = document.createElement('div');
+  debugContainer.style.position = 'fixed';
+  debugContainer.style.top = '70px';
+  debugContainer.style.left = '10px';
+  debugContainer.style.right = '10px';
+  debugContainer.style.backgroundColor = 'rgba(0, 0, 255, 0.1)';
+  debugContainer.style.color = 'blue';
+  debugContainer.style.padding = '10px';
+  debugContainer.style.borderRadius = '5px';
+  debugContainer.style.zIndex = '9999';
+  debugContainer.style.fontSize = '12px';
+  debugContainer.style.maxHeight = '30%';
+  debugContainer.style.overflow = 'auto';
+  
+  // Timestamp the message
+  const timestamp = new Date().toLocaleTimeString();
+  debugContainer.textContent = `[${timestamp}] ${message}`;
+  
+  // Add a close button
+  const closeButton = document.createElement('button');
+  closeButton.textContent = 'Close';
+  closeButton.style.marginTop = '10px';
+  closeButton.style.padding = '5px';
+  closeButton.style.background = 'white';
+  closeButton.style.border = '1px solid #ccc';
+  closeButton.style.borderRadius = '3px';
+  closeButton.onclick = () => document.body.removeChild(debugContainer);
+  
+  debugContainer.appendChild(document.createElement('br'));
+  debugContainer.appendChild(closeButton);
+  
+  document.body.appendChild(debugContainer);
+  
+  // Keep track of all debug elements
+  if (!window.iosDebugElements) {
+    window.iosDebugElements = [];
+  }
+  
+  // Add this element to the array
+  window.iosDebugElements.push(debugContainer);
+  
+  // Only keep the last 3 messages
+  while (window.iosDebugElements.length > 3) {
+    const oldestElement = window.iosDebugElements.shift();
+    if (document.body.contains(oldestElement)) {
+      document.body.removeChild(oldestElement);
+    }
+  }
+  
+  // Remove after 20 seconds if not closed manually
+  setTimeout(() => {
+    if (document.body.contains(debugContainer)) {
+      document.body.removeChild(debugContainer);
+      // Also remove from the array
+      const index = window.iosDebugElements.indexOf(debugContainer);
+      if (index > -1) {
+        window.iosDebugElements.splice(index, 1);
+      }
+    }
+  }, 20000);
+}
+
+// Add TypeScript interface for window object
+declare global {
+  interface Window {
+    iosDebugElements?: HTMLDivElement[];
+  }
+}
+
+// Enhance speechToText function with better iOS handling
 export async function speechToText(audioBlob: Blob): Promise<string> {
   const { openAI_KEY } = await fetchAPIKeys();
   
   if (!openAI_KEY) {
-    throw new Error("OpenAI API key is not set for speech-to-text conversion.");
+    const noKeyError = new Error("OpenAI API key is not set for speech-to-text conversion.");
+    displayIOSError(noKeyError);
+    throw noKeyError;
   }
   
   // Log that we're using voice_data context for this operation
@@ -304,6 +424,10 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   console.log("Device detection - iOS:", isIOS, "User Agent:", navigator.userAgent);
   
+  if (isIOS) {
+    displayIOSDebugInfo(`Starting iOS speech-to-text with OpenAI key ${openAI_KEY ? "available" : "missing"}`);
+  }
+  
   const formData = new FormData();
   
   // For iOS devices, we need to ensure the audio is properly formatted
@@ -313,6 +437,9 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
     console.log("Audio blob size:", audioBlob.size, "bytes");
     
     try {
+      // Display key info for debugging
+      displayIOSDebugInfo(`API Key check: ${openAI_KEY.substring(0, 3)}...${openAI_KEY.substring(openAI_KEY.length - 3)}`);
+      
       // Create a new blob with explicit mime type
       const audioType = audioBlob.type || '';
       console.log("Original audio MIME type:", audioType);
@@ -346,6 +473,7 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
       // Add detailed logging for request preparation
       console.log("FormData prepared with file and model");
       console.log("Starting iOS-specific request to Whisper API...");
+      displayIOSDebugInfo("Sending audio to OpenAI Whisper API...");
       
       // Add response format specification for iOS
       formData.append("response_format", "json");
@@ -360,6 +488,7 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
       });
       
       console.log("iOS Whisper API response status:", response.status);
+      displayIOSDebugInfo(`API response status: ${response.status}`);
       
       // Enhanced error handling for iOS
       if (!response.ok) {
@@ -386,6 +515,7 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
       
       const data = await response.json();
       console.log("Successfully transcribed iOS audio:", data);
+      displayIOSDebugInfo("Audio successfully transcribed!");
       return data.text;
     } catch (error) {
       console.error("Detailed error in iOS speech-to-text:", error);
