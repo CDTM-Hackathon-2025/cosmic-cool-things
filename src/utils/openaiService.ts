@@ -57,6 +57,7 @@ export async function fetchAPIKeys() {
   }
 }
 
+// Chat request handling
 export async function sendChatRequest(userMessage: string): Promise<string> {
   // Check if this is a stock comparison request
   const isStockRequest = isStockComparisonRequest(userMessage);
@@ -228,6 +229,8 @@ function getFallbackResponse(userMessage: string): string {
 
 // Helper function to detect iOS devices correctly
 export function isIOSDevice(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  
   const userAgent = navigator.userAgent || '';
   const iPad = Boolean(userAgent.match(/iPad/i));
   const iPhone = Boolean(userAgent.match(/iPhone/i));
@@ -241,33 +244,21 @@ export function isIOSDevice(): boolean {
   return isIOS;
 }
 
-// Improved audio format normalization for iOS devices
-export const normalizeAudioFormat = (audioBlob: Blob, isIOS: boolean): Promise<Blob> => {
-  return new Promise((resolve) => {
-    console.log(`Original audio blob: type=${audioBlob.type}, size=${audioBlob.size} bytes`);
-    
-    if (isIOS) {
-      console.log("iOS device detected, normalizing audio format for Whisper API compatibility");
-      
-      // For iOS, ensure correct MIME type for m4a files
-      const properBlob = new Blob([audioBlob], { 
-        type: 'audio/mp4' // iOS uses m4a (which should use audio/mp4 MIME type)
-      });
-      
-      console.log(`Normalized iOS audio: type=${properBlob.type}, size=${properBlob.size} bytes`);
-      resolve(properBlob);
-    } else {
-      // For other platforms, webm is preferred
-      const properBlob = new Blob([audioBlob], { 
-        type: 'audio/webm' 
-      });
-      console.log(`Non-iOS audio format: type=${properBlob.type}, size=${properBlob.size} bytes`);
-      resolve(properBlob);
-    }
-  });
-};
+// Audio processing functions for speech-to-text
+export function normalizeAudioFormat(audioBlob: Blob, isIOS: boolean): Blob {
+  console.log(`Original audio blob: type=${audioBlob.type}, size=${audioBlob.size} bytes`);
+  
+  // Determine correct MIME type based on device
+  const mimeType = isIOS ? 'audio/mp4' : 'audio/webm';
+  
+  // Create a new blob with the correct MIME type
+  const normalizedBlob = new Blob([audioBlob], { type: mimeType });
+  console.log(`Normalized audio: type=${normalizedBlob.type}, size=${normalizedBlob.size} bytes`);
+  
+  return normalizedBlob;
+}
 
-// Enhanced speech-to-text function using Whisper API - optimized for iOS
+// Enhanced speech-to-text function using Whisper API
 export async function speechToText(audioBlob: Blob): Promise<string> {
   const { openAI_KEY } = await fetchAPIKeys();
   
@@ -278,9 +269,9 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
   console.log("Starting speech-to-text conversion with blob type:", audioBlob.type);
   console.log("Audio blob size:", audioBlob.size, "bytes");
   
-  // Check if this is an iOS device and normalize the audio format accordingly
+  // Check if this is an iOS device
   const isIOS = isIOSDevice();
-  const normalizedBlob = await normalizeAudioFormat(audioBlob, isIOS);
+  const normalizedBlob = normalizeAudioFormat(audioBlob, isIOS);
   
   console.log(`Sending audio to Whisper API with MIME type: ${normalizedBlob.type}, size: ${normalizedBlob.size} bytes`);
   
@@ -291,7 +282,7 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
   formData.append("file", normalizedBlob, `recording.${fileExtension}`);
   formData.append("model", "whisper-1");
   
-  // Set additional parameters to improve transcription quality
+  // Set additional parameters for better transcription quality
   formData.append("language", "en"); // Specify English for better accuracy
   formData.append("response_format", "json"); // Ensure we get JSON response
   
@@ -319,7 +310,7 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
   }
 }
 
-// Text-to-speech function using voice preferences from voice_data
+// Text-to-speech function using OpenAI API
 export async function textToSpeech(text: string): Promise<ArrayBuffer> {
   const { openAI_KEY } = await fetchAPIKeys();
   
@@ -327,7 +318,6 @@ export async function textToSpeech(text: string): Promise<ArrayBuffer> {
     throw new Error("OpenAI API key is not set for text-to-speech conversion.");
   }
   
-  // Log that we're using voice_data preferences for this operation
   console.log("Using voice preferences for text-to-speech operation");
   
   const response = await fetch("https://api.openai.com/v1/audio/speech", {
@@ -338,10 +328,10 @@ export async function textToSpeech(text: string): Promise<ArrayBuffer> {
     },
     body: JSON.stringify({
       model: "tts-1",
-      voice: voiceContextData.voicePreferences.voiceType === "friendly" ? "alloy" : "onyx", // Map voice type to OpenAI voice
+      voice: voiceContextData.voicePreferences.voiceType === "friendly" ? "alloy" : "onyx",
       input: text,
       speed: voiceContextData.voicePreferences.speechRate === "slow" ? 0.8 : 
-             voiceContextData.voicePreferences.speechRate === "fast" ? 1.2 : 1.0 // Map speech rate to speed parameter
+             voiceContextData.voicePreferences.speechRate === "fast" ? 1.2 : 1.0
     })
   });
   

@@ -1,10 +1,18 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Send, Volume2, VolumeX } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { sendChatRequest, sendVoiceRequest, speechToText, textToSpeech, fetchAPIKeys, isIOSDevice } from "@/utils/openaiService";
+import { 
+  sendChatRequest, 
+  sendVoiceRequest, 
+  speechToText, 
+  textToSpeech, 
+  fetchAPIKeys, 
+  isIOSDevice 
+} from "@/utils/openaiService";
 import { useToast } from "@/hooks/use-toast";
 import StockChart from "@/components/StockChart";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -249,67 +257,60 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
     }
   };
   
-  // Enhanced microphone recording start function with better iOS support
+  // Completely refactored iOS-compatible recording function
   const startRecording = async () => {
     try {
       console.log("Attempting to access microphone...");
       
-      // Specific audio constraints for better iOS compatibility
+      // Request microphone access with specific audio constraints
       const audioConstraints: MediaStreamConstraints = {
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
+          // iOS-specific constraints
+          ...(isIOS && {
+            sampleRate: 44100,
+            channelCount: 1
+          })
         }
       };
       
-      // Add iOS specific logging
-      if (isIOS) {
-        console.log("iOS device detected - using iOS-specific audio settings");
-      }
+      console.log(`${isIOS ? "iOS" : "Non-iOS"} device detected, using appropriate audio settings`);
       
       // Request microphone access
       const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
       console.log("Microphone access granted successfully");
       
-      // Determine optimal recording configuration based on platform
-      let options: MediaRecorderOptions = {};
-      
-      if (isIOS) {
-        // For iOS, we need to use compatible formats
-        // Most iOS devices support this MIME type
-        console.log("Using iOS-optimized audio format settings");
-        options = { 
-          mimeType: 'audio/mp4',  // This is what iOS uses for m4a
-          audioBitsPerSecond: 128000 // Higher bitrate for better quality
-        };
-      } else {
-        console.log("Using standard WebM audio format for non-iOS device");
-        options = { 
-          mimeType: 'audio/webm',
-          audioBitsPerSecond: 128000
-        };
-      }
-      
+      // Set up MediaRecorder with appropriate options for the device
       try {
-        console.log("Creating MediaRecorder with options:", JSON.stringify(options));
-        const mediaRecorder = new MediaRecorder(stream, options);
-        mediaRecorderRef.current = mediaRecorder;
+        // Determine the best MIME type for this device
+        let mimeType = isIOS ? 'audio/mp4' : 'audio/webm';
+        
+        console.log(`Using ${mimeType} format for recording on ${isIOS ? "iOS" : "standard"} device`);
+        
+        const recorder = new MediaRecorder(stream, {
+          mimeType: mimeType,
+          audioBitsPerSecond: 128000 // Higher bitrate for better quality
+        });
+        
+        mediaRecorderRef.current = recorder;
         audioChunksRef.current = [];
         
-        mediaRecorder.ondataavailable = (event) => {
+        recorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
-            console.log(`Audio data chunk received: ${event.data.size} bytes`);
+            console.log(`Audio data chunk received: ${event.data.size} bytes, type: ${event.data.type}`);
             audioChunksRef.current.push(event.data);
           }
         };
         
-        mediaRecorder.onstop = async () => {
+        recorder.onstop = async () => {
           console.log("MediaRecorder stopped, processing recorded audio...");
           
-          // Combine audio chunks
-          const audioType = isIOS ? 'audio/mp4' : 'audio/webm';
-          const audioBlob = new Blob(audioChunksRef.current, { type: audioType });
+          // Create a blob from the audio chunks
+          const audioBlob = new Blob(audioChunksRef.current, { 
+            type: isIOS ? 'audio/mp4' : 'audio/webm'
+          });
           
           console.log(`Recording completed. Blob type: ${audioBlob.type}, size: ${audioBlob.size} bytes`);
           
@@ -350,15 +351,15 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
         };
         
         // Use smaller timeSlice for more frequent data collection
-        console.log("Starting MediaRecorder with 250ms timeslice");
-        mediaRecorder.start(250);
+        console.log("Starting MediaRecorder");
+        recorder.start(250);
         setIsRecording(true);
         
       } catch (mediaRecorderError) {
         console.error("Error creating MediaRecorder with specified options:", mediaRecorderError);
         
-        // Fallback with default settings if specified MIME type fails
-        console.log("Trying with default MediaRecorder settings (no specific MIME type)");
+        // Try with default options as fallback
+        console.log("Trying with default MediaRecorder settings");
         try {
           const fallbackRecorder = new MediaRecorder(stream);
           mediaRecorderRef.current = fallbackRecorder;
@@ -366,22 +367,18 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
           
           fallbackRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
-              console.log(`Fallback: Audio data chunk received: ${event.data.size} bytes`);
               audioChunksRef.current.push(event.data);
             }
           };
           
           fallbackRecorder.onstop = async () => {
             const audioBlob = new Blob(audioChunksRef.current);
-            console.log(`Fallback recording completed. Blob type: ${audioBlob.type}, size: ${audioBlob.size} bytes`);
             
             try {
               setIsLoading(true);
-              console.log("Sending fallback recorded audio to speech-to-text service...");
               const transcribedText = await speechToText(audioBlob);
               
               if (transcribedText && transcribedText.trim()) {
-                console.log("Fallback transcription successful:", transcribedText);
                 handleVoiceMessage(transcribedText);
               } else {
                 toast({
@@ -400,9 +397,9 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
             }
           };
           
-          console.log("Starting fallback MediaRecorder");
-          fallbackRecorder.start(250); // Also use smaller chunks for fallback
+          fallbackRecorder.start(250);
           setIsRecording(true);
+          
         } catch (fallbackError) {
           console.error("Even fallback MediaRecorder failed:", fallbackError);
           toast({
@@ -423,12 +420,16 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
   
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      console.log("Stopping MediaRecorder");
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       
       // Stop all audio tracks
       if (mediaRecorderRef.current.stream) {
-        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+        mediaRecorderRef.current.stream.getTracks().forEach(track => {
+          console.log(`Stopping audio track: ${track.kind}`);
+          track.stop();
+        });
       }
     }
   };
@@ -459,10 +460,11 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
     handleSendMessage(question);
   };
 
+  // The rest of your component render function remains largely the same
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="bg-white max-w-md w-[81vw] p-0 gap-0 h-[80vh] flex flex-col rounded-lg">
-        {/* Assistant profile header - Updated with Christine Lagarde's image */}
+        {/* Assistant profile header */}
         <div className="p-4 border-b flex items-center space-x-3">
           <Avatar className="h-10 w-10">
             <AvatarImage 
