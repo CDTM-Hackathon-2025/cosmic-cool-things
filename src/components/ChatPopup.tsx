@@ -254,35 +254,37 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
     try {
       console.log("Attempting to access microphone...");
       
-      // Request microphone access with optimal settings for speech recognition
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      // Specific audio constraints for better iOS compatibility
+      const audioConstraints: MediaStreamConstraints = {
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 48000, // Higher sample rate for better quality
-          channelCount: 1,   // Mono audio is sufficient for speech
-        } 
-      });
+        }
+      };
       
+      // Add iOS specific logging
+      if (isIOS) {
+        console.log("iOS device detected - using iOS-specific audio settings");
+      }
+      
+      // Request microphone access
+      const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
       console.log("Microphone access granted successfully");
       
-      // Determine the optimal recording configuration based on platform
-      const isIOS = isIOSDevice();
-      console.log(`Device detected: ${isIOS ? "iOS" : "Non-iOS"}`);
-      
+      // Determine optimal recording configuration based on platform
       let options: MediaRecorderOptions = {};
       
       if (isIOS) {
         // For iOS, we need to use compatible formats
-        console.log("Using iOS-compatible audio format");
+        // Most iOS devices support this MIME type
+        console.log("Using iOS-optimized audio format settings");
         options = { 
-          mimeType: 'audio/mp4',  // This translates to m4a on iOS
+          mimeType: 'audio/mp4',  // This is what iOS uses for m4a
           audioBitsPerSecond: 128000 // Higher bitrate for better quality
         };
       } else {
-        // For other platforms, use WebM
-        console.log("Using standard WebM audio format");
+        console.log("Using standard WebM audio format for non-iOS device");
         options = { 
           mimeType: 'audio/webm',
           audioBitsPerSecond: 128000
@@ -290,20 +292,20 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
       }
       
       try {
+        console.log("Creating MediaRecorder with options:", JSON.stringify(options));
         const mediaRecorder = new MediaRecorder(stream, options);
-        console.log(`MediaRecorder created with options: ${JSON.stringify(options)}`);
         mediaRecorderRef.current = mediaRecorder;
         audioChunksRef.current = [];
         
         mediaRecorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
-            console.log(`Audio data chunk received, size: ${event.data.size} bytes`);
+            console.log(`Audio data chunk received: ${event.data.size} bytes`);
             audioChunksRef.current.push(event.data);
           }
         };
         
         mediaRecorder.onstop = async () => {
-          console.log("MediaRecorder stopped, processing audio...");
+          console.log("MediaRecorder stopped, processing recorded audio...");
           
           // Combine audio chunks
           const audioType = isIOS ? 'audio/mp4' : 'audio/webm';
@@ -312,10 +314,10 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
           console.log(`Recording completed. Blob type: ${audioBlob.type}, size: ${audioBlob.size} bytes`);
           
           if (audioBlob.size < 1000) {
-            console.warn("Audio recording is too small, may not contain speech");
+            console.warn("Warning: Audio recording is too small, may not contain speech");
             toast({
               title: "Recording Failed",
-              description: "No audio was captured. Please check your microphone access and try again.",
+              description: "No audio was captured. Please check your microphone permissions and try again.",
             });
             setIsLoading(false);
             return;
@@ -323,19 +325,17 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
           
           try {
             setIsLoading(true);
-            // Convert speech to text using the Whisper API
-            console.log("Sending audio to speech-to-text service...");
+            console.log("Sending audio to speech-to-text processing...");
             const transcribedText = await speechToText(audioBlob);
             
-            if (transcribedText.trim()) {
-              console.log("Transcription received:", transcribedText);
-              // Handle the transcribed message
+            if (transcribedText && transcribedText.trim()) {
+              console.log("Transcription successful:", transcribedText);
               handleVoiceMessage(transcribedText);
             } else {
-              console.warn("Empty transcription received");
+              console.warn("Empty transcription received from Whisper API");
               toast({
                 title: "Could not detect speech",
-                description: "Please try again speaking clearly",
+                description: "Please try again speaking clearly into the microphone",
               });
               setIsLoading(false);
             }
@@ -350,55 +350,66 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
         };
         
         // Use smaller timeSlice for more frequent data collection
-        // This helps with audio quality, especially on iOS
         console.log("Starting MediaRecorder with 250ms timeslice");
         mediaRecorder.start(250);
         setIsRecording(true);
         
       } catch (mediaRecorderError) {
-        console.error("Error creating MediaRecorder:", mediaRecorderError);
+        console.error("Error creating MediaRecorder with specified options:", mediaRecorderError);
         
-        // If MediaRecorder fails with the specified MIME type, try with default settings
-        console.log("Trying with default MediaRecorder settings");
-        const fallbackRecorder = new MediaRecorder(stream);
-        mediaRecorderRef.current = fallbackRecorder;
-        audioChunksRef.current = [];
-        
-        fallbackRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
-            audioChunksRef.current.push(event.data);
-          }
-        };
-        
-        fallbackRecorder.onstop = async () => {
-          const audioBlob = new Blob(audioChunksRef.current);
-          console.log(`Fallback recording completed. Blob type: ${audioBlob.type}, size: ${audioBlob.size} bytes`);
+        // Fallback with default settings if specified MIME type fails
+        console.log("Trying with default MediaRecorder settings (no specific MIME type)");
+        try {
+          const fallbackRecorder = new MediaRecorder(stream);
+          mediaRecorderRef.current = fallbackRecorder;
+          audioChunksRef.current = [];
           
-          try {
-            setIsLoading(true);
-            const transcribedText = await speechToText(audioBlob);
+          fallbackRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+              console.log(`Fallback: Audio data chunk received: ${event.data.size} bytes`);
+              audioChunksRef.current.push(event.data);
+            }
+          };
+          
+          fallbackRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunksRef.current);
+            console.log(`Fallback recording completed. Blob type: ${audioBlob.type}, size: ${audioBlob.size} bytes`);
             
-            if (transcribedText.trim()) {
-              handleVoiceMessage(transcribedText);
-            } else {
+            try {
+              setIsLoading(true);
+              console.log("Sending fallback recorded audio to speech-to-text service...");
+              const transcribedText = await speechToText(audioBlob);
+              
+              if (transcribedText && transcribedText.trim()) {
+                console.log("Fallback transcription successful:", transcribedText);
+                handleVoiceMessage(transcribedText);
+              } else {
+                toast({
+                  title: "Could not detect speech",
+                  description: "Please try again speaking clearly",
+                });
+                setIsLoading(false);
+              }
+            } catch (error) {
+              console.error("Speech recognition failed with fallback:", error);
               toast({
-                title: "Could not detect speech",
-                description: "Please try again speaking clearly",
+                title: "Speech Recognition Failed",
+                description: "Please check your microphone and try again.",
               });
               setIsLoading(false);
             }
-          } catch (error) {
-            console.error("Speech recognition failed:", error);
-            toast({
-              title: "Speech Recognition Failed",
-              description: "Please check your microphone and try again.",
-            });
-            setIsLoading(false);
-          }
-        };
-        
-        fallbackRecorder.start();
-        setIsRecording(true);
+          };
+          
+          console.log("Starting fallback MediaRecorder");
+          fallbackRecorder.start(250); // Also use smaller chunks for fallback
+          setIsRecording(true);
+        } catch (fallbackError) {
+          console.error("Even fallback MediaRecorder failed:", fallbackError);
+          toast({
+            title: "Recording Not Supported",
+            description: "Your browser doesn't support audio recording. Please try typing your message instead.",
+          });
+        }
       }
       
     } catch (error) {

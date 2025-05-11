@@ -228,26 +228,36 @@ function getFallbackResponse(userMessage: string): string {
 
 // Helper function to detect iOS devices correctly
 export function isIOSDevice(): boolean {
-  // More reliable iOS detection
   const userAgent = navigator.userAgent || '';
-  return /iPad|iPhone|iPod/.test(userAgent);
+  const iPad = Boolean(userAgent.match(/iPad/i));
+  const iPhone = Boolean(userAgent.match(/iPhone/i));
+  const iPod = Boolean(userAgent.match(/iPod/i));
+  
+  // More comprehensive iOS detection including iPad with desktop mode
+  const isIOS = iPad || iPhone || iPod || 
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  
+  console.log("iOS detection result:", isIOS, "User agent:", userAgent);
+  return isIOS;
 }
 
 // Improved audio format normalization for iOS devices
 export const normalizeAudioFormat = (audioBlob: Blob, isIOS: boolean): Promise<Blob> => {
   return new Promise((resolve) => {
+    console.log(`Original audio blob: type=${audioBlob.type}, size=${audioBlob.size} bytes`);
+    
     if (isIOS) {
       console.log("iOS device detected, normalizing audio format for Whisper API compatibility");
       
-      // On iOS, we need to handle m4a format correctly
+      // For iOS, ensure correct MIME type for m4a files
       const properBlob = new Blob([audioBlob], { 
-        type: 'audio/mp4' // iOS uses m4a (which is audio/mp4 MIME type)
+        type: 'audio/mp4' // iOS uses m4a (which should use audio/mp4 MIME type)
       });
       
       console.log(`Normalized iOS audio: type=${properBlob.type}, size=${properBlob.size} bytes`);
       resolve(properBlob);
     } else {
-      // For other platforms, use webm
+      // For other platforms, webm is preferred
       const properBlob = new Blob([audioBlob], { 
         type: 'audio/webm' 
       });
@@ -257,7 +267,7 @@ export const normalizeAudioFormat = (audioBlob: Blob, isIOS: boolean): Promise<B
   });
 };
 
-// Speech-to-text function using Whisper API - enhanced for iOS compatibility
+// Enhanced speech-to-text function using Whisper API - optimized for iOS
 export async function speechToText(audioBlob: Blob): Promise<string> {
   const { openAI_KEY } = await fetchAPIKeys();
   
@@ -265,7 +275,8 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
     throw new Error("OpenAI API key is not set for speech-to-text conversion.");
   }
   
-  console.log("Original audio MIME type:", audioBlob.type);
+  console.log("Starting speech-to-text conversion with blob type:", audioBlob.type);
+  console.log("Audio blob size:", audioBlob.size, "bytes");
   
   // Check if this is an iOS device and normalize the audio format accordingly
   const isIOS = isIOSDevice();
@@ -275,7 +286,7 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
   
   const formData = new FormData();
   
-  // Use the correct file extension and content type based on device type
+  // Use the correct file extension based on device type
   const fileExtension = isIOS ? "m4a" : "webm";
   formData.append("file", normalizedBlob, `recording.${fileExtension}`);
   formData.append("model", "whisper-1");
@@ -300,10 +311,10 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
     }
     
     const data = await response.json();
-    console.log("Whisper API transcription result:", data.text);
+    console.log("Whisper API transcription successful:", data.text);
     return data.text;
   } catch (error) {
-    console.error("Transcription error details:", error);
+    console.error("Transcription error:", error);
     throw error;
   }
 }
