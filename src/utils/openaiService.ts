@@ -1,4 +1,3 @@
-
 import { chatContextData } from "@/data/chat_data";
 import { voiceContextData } from "@/data/voice_data";
 import { supabase } from "@/integrations/supabase/client";
@@ -229,9 +228,10 @@ function getFallbackResponse(userMessage: string): string {
   }
 }
 
-// Helper function to detect iOS
+// Helper function to detect iOS - fixed to avoid TypeScript error with MSStream
 export function isIOSDevice(): boolean {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  // Use a safer check that doesn't rely on MSStream property
+  return /iPad|iPhone|iPod/.test(navigator.userAgent);
 }
 
 // Speech-to-text function using voice_data context
