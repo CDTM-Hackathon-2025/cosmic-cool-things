@@ -1,3 +1,4 @@
+
 import { chatContextData } from "@/data/chat_data";
 import { voiceContextData } from "@/data/voice_data";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,15 +11,7 @@ interface ChatMessage {
 // Function to fetch API keys from Supabase
 export async function fetchAPIKeys() {
   try {
-    // Check if this is running on iOS
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    
-    console.log("Device environment:", isIOS ? "iOS device detected" : "Non-iOS device", 
-                "User Agent:", navigator.userAgent);
-    
-    console.log("Starting API key fetch from Supabase");
-    
+    console.log("Fetching API keys from Supabase secrets table...");
     // Fetch OpenAI key
     const { data: openaiData, error: openaiError } = await supabase
       .from('secrets')
@@ -45,30 +38,22 @@ export async function fetchAPIKeys() {
       console.log("Mistral key fetch result:", mistralData ? "Key found" : "No key found");
     }
 
-    // Check localStorage as well
-    const localOpenAI = localStorage.getItem("openai-api-key");
-    const localMistral = localStorage.getItem("mistral-api-key");
-    
-    console.log("Local storage check:", 
-      localOpenAI ? "OpenAI key found in localStorage" : "No OpenAI key in localStorage",
-      localMistral ? "Mistral key found in localStorage" : "No Mistral key in localStorage");
-
     // Get keys from Supabase table or fallback to localStorage
     const openAI_KEY = openaiData?.text || localStorage.getItem("openai-api-key") || "";
     const mistral_KEY = mistralData?.text || localStorage.getItem("mistral-api-key") || "";
 
-    console.log("Final API keys loaded:", 
+    console.log("API keys loaded:", 
       openAI_KEY ? "OpenAI key available" : "No OpenAI key", 
       mistral_KEY ? "Mistral key available" : "No Mistral key");
 
     return { openAI_KEY, mistral_KEY };
   } catch (error) {
     console.error("Unexpected error fetching API keys:", error);
-    
     // Fallback to localStorage
-    const openAI_KEY = localStorage.getItem("openai-api-key") || "";
-    const mistral_KEY = localStorage.getItem("mistral-api-key") || "";
-    return { openAI_KEY, mistral_KEY };
+    return {
+      openAI_KEY: localStorage.getItem("openai-api-key") || "",
+      mistral_KEY: localStorage.getItem("mistral-api-key") || ""
+    };
   }
 }
 
@@ -244,130 +229,37 @@ function getFallbackResponse(userMessage: string): string {
   }
 }
 
-// Enhanced speechToText function with better iOS handling
+// Speech-to-text function using voice_data context
 export async function speechToText(audioBlob: Blob): Promise<string> {
   const { openAI_KEY } = await fetchAPIKeys();
   
   if (!openAI_KEY) {
-    const noKeyError = new Error("OpenAI API key is not set for speech-to-text conversion.");
-    console.error(noKeyError);
-    throw noKeyError;
+    throw new Error("OpenAI API key is not set for speech-to-text conversion.");
   }
   
   // Log that we're using voice_data context for this operation
   console.log("Using voice context for speech-to-text operation");
   
-  // Enhanced iOS detection - more thorough check
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  console.log("Device detection - iOS:", isIOS, "User Agent:", navigator.userAgent);
-  
   const formData = new FormData();
+  formData.append("file", audioBlob, "recording.webm");
+  formData.append("model", "whisper-1");
+  // Can't add system prompt to Whisper API directly, but we note that we're 
+  // using this in the voice context flow
   
-  // For iOS devices, we need to ensure the audio is properly formatted
-  if (isIOS) {
-    console.log("iOS detected - Using iOS-specific audio handling");
-    console.log("Original audio blob type:", audioBlob.type);
-    console.log("Audio blob size:", audioBlob.size, "bytes");
-    
-    try {
-      // Create a new blob with explicit mime type - UPDATED FOR iOS COMPATIBILITY
-      const audioType = audioBlob.type || '';
-      console.log("Original audio MIME type:", audioType);
-      
-      // iOS devices typically record in m4a format when using the browser
-      let processedBlob = audioBlob;
-      let filename = "recording.m4a"; // Default for iOS
-      
-      // Check specific types and set appropriate format
-      if (audioType.includes("webm")) {
-        // For iOS, convert webm to m4a which is better supported
-        processedBlob = new Blob([audioBlob], { type: 'audio/m4a' });
-        filename = "recording.m4a";
-        console.log("Converting webm to m4a format for iOS");
-      } else if (audioType.includes("mp4")) {
-        filename = "recording.mp4";
-        console.log("Using mp4 format");
-      } else if (audioType.includes("mp3")) {
-        filename = "recording.mp3";
-        console.log("Using mp3 format");
-      } else if (audioType === "") {
-        // If no type, iOS typically uses m4a
-        processedBlob = new Blob([audioBlob], { type: 'audio/m4a' });
-        console.log("Empty MIME type - forcing audio/m4a for iOS compatibility");
-      }
-      
-      console.log("Final MIME type:", processedBlob.type || 'No MIME type (using filename extension)');
-      console.log("Using filename:", filename);
-      
-      // Append with the appropriate filename to help the API identify the format
-      formData.append("file", processedBlob, filename);
-      
-      // Add API model
-      formData.append("model", "whisper-1");
-      
-      // Add detailed logging for request preparation
-      console.log("FormData prepared with file and model");
-      console.log("Starting iOS-specific request to Whisper API...");
-      
-      // Add response format specification for iOS
-      formData.append("response_format", "json");
-      
-      // Make the API request with extra logging
-      const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${openAI_KEY}`
-        },
-        body: formData
-      });
-      
-      console.log("iOS Whisper API response status:", response.status);
-      
-      // Enhanced error handling for iOS
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("iOS Whisper API error response:", errorText);
-        throw new Error(`OpenAI Whisper API error for iOS: ${response.status} ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log("Successfully transcribed iOS audio:", data);
-      return data.text;
-    } catch (error) {
-      console.error("Detailed error in iOS speech-to-text:", error);
-      throw error;
-    }
-  } else {
-    // Non-iOS devices - keep original implementation
-    formData.append("file", audioBlob, "recording.webm");
-    formData.append("model", "whisper-1");
-    
-    try {
-      console.log("Sending audio to OpenAI Whisper API...");
-      
-      const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${openAI_KEY}`
-        },
-        body: formData
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("OpenAI Whisper API error response:", errorText);
-        throw new Error(`OpenAI Whisper API error: ${response.status} ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log("Successfully transcribed audio");
-      return data.text;
-    } catch (error) {
-      console.error("Error in speech-to-text:", error);
-      throw error;
-    }
+  const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${openAI_KEY}`
+    },
+    body: formData
+  });
+  
+  if (!response.ok) {
+    throw new Error(`OpenAI Whisper API error: ${response.status} ${response.statusText}`);
   }
+  
+  const data = await response.json();
+  return data.text;
 }
 
 // Text-to-speech function using voice preferences from voice_data
