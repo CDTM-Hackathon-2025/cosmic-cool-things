@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -252,29 +251,36 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
   
   const startRecording = async () => {
     try {
-      // Request higher quality audio - important for better speech recognition
+      // Request higher quality audio settings for better speech recognition
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          // Try to request higher sample rate for better quality
-          sampleRate: 44100,
-          channelCount: 1,
+          sampleRate: 48000, // Higher sample rate for better quality
+          channelCount: 1,   // Mono audio is sufficient for speech
         } 
       });
       
       // Configure MediaRecorder based on platform
+      const isIOS = isIOSDevice();
       let options = {};
       
       if (isIOS) {
-        // Use iOS-compatible audio format
-        options = { mimeType: 'audio/mp4' };
-        console.log("Using iOS-compatible audio format: audio/mp4");
+        // For iOS, we need to use a compatible audio format (MPEG or MP4)
+        // The actual codec will be AAC which is compatible with Whisper API
+        console.log("Using iOS-compatible audio format (audio/mp4)");
+        options = { 
+          mimeType: 'audio/mp4',
+          audioBitsPerSecond: 128000 // Higher bitrate for better quality
+        };
       } else {
-        // Use standard format for other platforms
-        options = { mimeType: 'audio/webm' };
-        console.log("Using standard audio format: audio/webm");
+        // Standard WebM format for other platforms
+        console.log("Using standard audio format (audio/webm)");
+        options = { 
+          mimeType: 'audio/webm',
+          audioBitsPerSecond: 128000 // Higher bitrate for better quality
+        };
       }
       
       const mediaRecorder = new MediaRecorder(stream, options);
@@ -288,14 +294,15 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
       };
       
       mediaRecorder.onstop = async () => {
-        // Combine audio chunks into a single blob 
+        // Combine audio chunks into a single blob with proper type
         const audioType = isIOS ? 'audio/mp4' : 'audio/webm';
         const audioBlob = new Blob(audioChunksRef.current, { type: audioType });
+        
         console.log(`Recording completed. Blob type: ${audioBlob.type}, size: ${audioBlob.size} bytes`);
         
         try {
           setIsLoading(true);
-          // Convert speech to text
+          // Convert speech to text using the Whisper API
           const transcribedText = await speechToText(audioBlob);
           
           if (transcribedText.trim()) {
@@ -312,14 +319,15 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
           console.error("Speech recognition failed:", error);
           toast({
             title: "Speech Recognition Failed",
-            description: "Please check your OpenAI API key and try again.",
+            description: "Please check your microphone and try again.",
           });
           setIsLoading(false);
         }
       };
       
-      // Set longer timeSlice for better quality audio chunks (300ms instead of default)
-      mediaRecorder.start(300);
+      // Use smaller timeSlice for more frequent data collection
+      // This helps with audio quality, especially on iOS
+      mediaRecorder.start(250);
       setIsRecording(true);
       
     } catch (error) {
