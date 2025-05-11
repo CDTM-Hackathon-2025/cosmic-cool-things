@@ -1,4 +1,3 @@
-
 import { chatContextData } from "@/data/chat_data";
 import { voiceContextData } from "@/data/voice_data";
 import { supabase } from "@/integrations/supabase/client";
@@ -240,9 +239,9 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
   // Log that we're using voice_data context for this operation
   console.log("Using voice context for speech-to-text operation");
   
-  // Check if running on iOS and handle file format accordingly
+  // Enhanced iOS detection
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  console.log("Device detection - iOS:", isIOS);
+  console.log("Device detection - iOS:", isIOS, "User Agent:", navigator.userAgent);
   
   const formData = new FormData();
   
@@ -252,18 +251,37 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
     
     // Check the blob type and make sure it's acceptable for the API
     console.log("Original audio blob type:", audioBlob.type);
+    console.log("Audio blob size:", audioBlob.size, "bytes");
     
-    // iOS may record as audio/mp4 or other formats - convert to proper filename extension
-    let filename = "recording.webm";
-    if (audioBlob.type.includes("mp4")) {
-      filename = "recording.mp4";
-    } else if (audioBlob.type.includes("m4a")) {
-      filename = "recording.m4a";
+    try {
+      // Create a new blob with explicit mime type if needed
+      let processedBlob = audioBlob;
+      
+      // If the blob type is empty or not recognized, try to set it explicitly
+      if (!audioBlob.type || audioBlob.type === "audio/mp4" || audioBlob.type === "") {
+        console.log("Setting explicit MIME type for iOS audio");
+        processedBlob = new Blob([audioBlob], { type: 'audio/m4a' });
+      }
+      
+      // iOS may record as audio/mp4 or other formats - determine appropriate filename extension
+      let filename = "recording.m4a"; // Default to m4a for iOS
+      
+      // Check specific types to determine best filename
+      if (processedBlob.type.includes("webm")) {
+        filename = "recording.webm";
+      } else if (processedBlob.type.includes("mp4")) {
+        filename = "recording.mp4";
+      }
+      
+      console.log("Using processed blob with type:", processedBlob.type);
+      console.log("Using filename:", filename);
+      
+      // Append with the appropriate filename to help the API identify the format
+      formData.append("file", processedBlob, filename);
+    } catch (e) {
+      console.error("Error processing iOS audio blob:", e);
+      throw new Error(`iOS audio processing failed: ${e.message}`);
     }
-    
-    // Append with the appropriate filename to help the API identify the format
-    formData.append("file", audioBlob, filename);
-    console.log("Appended audio with filename:", filename);
   } else {
     // For non-iOS devices, use standard approach
     formData.append("file", audioBlob, "recording.webm");
@@ -276,6 +294,12 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
   
   try {
     console.log("Sending audio to OpenAI Whisper API...");
+    
+    // Additional logging for iOS
+    if (isIOS) {
+      console.log("Making iOS-specific request to Whisper API");
+    }
+    
     const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
       headers: {
@@ -287,6 +311,17 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("OpenAI Whisper API error response:", errorText);
+      
+      // Enhanced error handling for iOS specific issues
+      if (isIOS) {
+        console.error("iOS-specific error with status:", response.status);
+        if (response.status === 400) {
+          throw new Error("The audio file format from your iOS device was not recognized. Please try recording again or use text input instead.");
+        } else if (response.status === 401) {
+          throw new Error("Authentication failed. Your OpenAI API key might be invalid or expired.");
+        }
+      }
+      
       throw new Error(`OpenAI Whisper API error: ${response.status} ${response.statusText}`);
     }
     
@@ -295,9 +330,18 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
     return data.text;
   } catch (error) {
     console.error("Detailed error in speech-to-text:", error);
-    // Re-throw with more specific message for iOS users
+    
+    // Enhanced iOS error messages
     if (isIOS) {
-      throw new Error("iOS speech recognition failed. Please check your OpenAI API key and make sure your microphone permissions are enabled. If the problem persists, try using the text input instead.");
+      // Check for specific error patterns
+      const errorStr = String(error);
+      if (errorStr.includes("401")) {
+        throw new Error("iOS speech recognition failed due to authorization issues. Please check your OpenAI API key.");
+      } else if (errorStr.includes("400")) {
+        throw new Error("iOS speech recording format issue. Please ensure microphone permissions are enabled and try speaking clearly.");
+      } else {
+        throw new Error("iOS speech recognition failed. Please check your internet connection and OpenAI API key. If the problem persists, try using the text input instead.");
+      }
     }
     throw error;
   }
