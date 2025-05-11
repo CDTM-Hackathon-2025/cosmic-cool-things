@@ -1,4 +1,4 @@
-# Welcome to your Lovable project
+# Republica - your personal advisor
 
 ## One Sentence Pitch
 
@@ -34,6 +34,23 @@ This project is built by embedding a fine-tuned LLM pipeline as a backbone to a 
 - building a front end as developers with no front-end dev experience might result in a wild ride -> luckily, tools like [Lovable](https://lovable.dev/) can be impressively useful! most important thing is to focus on fast iteration instead of lengthy prompts
 
 - making sure the other person really understands what you envision for how a feature should look like and be used when implemented -> use tools like [Figma](https://www.figma.com) to quickly visualize your idea so other people see what you are thinking about
+
+## Applycation for CDTM Challenges
+### "Best Use of La Plateforme/ Mistral models" by Mistral
+By leveraging the capabilities of the newest Mistral LLM models, we enable more intuitive and efficient user interaction. Such integration ensures that the users receive the most relevant information and are able to make informed choices concerning their wealth management. 
+
+### "Most potential to earn real money" by Visionaries Club
+Streamline customer experience concerning wealth management by centralising core activities within one app. Integration of tax management within banking allows users to monitor, analyse and streamline related processes beyond what is feasible with currently used (separated) approaches. It's an industry-leading idea to revolutionise the future of private finance. 
+
+### "Best Use of Real-Time Interactive Avatars" by Beyond Presence
+
+Our vision to centralise and streamline wealth management with Tax processes integration in banking requires building new user interfaces. We believe that the future lies in enabling familiar user interaction concepts with the latest technologies. Interactive Avatars provide exactly that. We integrate Avatar as a friendly helper for Tax management, allowing clear and efficient interaction. 
+
+### "Best use of AI to improve processes" by Celonis
+In a human-in-the-loop setup to detect and classify tax-relevant information automatically. This enables a fully streamlined tax process within the Trade Republic app which, no one else can currently offer.
+
+### "Why Not? Biggest Creative Risk" by Tanso
+We should win this challenge because we took a huge development risk. Without prior UX or integration experience, we built a full user interface mirroring the Trade Republic app. Coming from a completely different background, we eagerly added every feature we could imagine. High risk, high reward—our bold approach sets us apart.
 
 ## Interesting Facts
 
