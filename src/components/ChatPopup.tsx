@@ -1,10 +1,11 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Send, Volume2, VolumeX } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { sendChatRequest, sendVoiceRequest, speechToText, textToSpeech, fetchAPIKeys, displayIOSDebugInfo } from "@/utils/openaiService";
+import { sendChatRequest, sendVoiceRequest, speechToText, textToSpeech, fetchAPIKeys } from "@/utils/openaiService";
 import { useToast } from "@/hooks/use-toast";
 import StockChart from "@/components/StockChart";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -266,9 +267,6 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
         
       // Log the chosen audio format
       console.log(`Recording using format: ${mimeType} on ${isIOS ? 'iOS device' : 'non-iOS device'}`);
-      if (isIOS) {
-        displayIOSDebugInfo(`Starting recording with format: ${mimeType}`);
-      }
       
       // Check if the browser supports the chosen mime type
       let options = {};
@@ -278,9 +276,6 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
       } else {
         // If the device doesn't support the preferred format, let the browser choose
         console.log(`Browser does not support ${mimeType}, using browser default`);
-        if (isIOS) {
-          displayIOSDebugInfo(`Browser does not support ${mimeType}, using default format`);
-        }
       }
       
       const mediaRecorder = new MediaRecorder(stream, options);
@@ -299,9 +294,6 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
         
         // Log the actual format we ended up with
         console.log("Recording stopped, audio blob type:", audioBlob.type || "unknown");
-        if (isIOS) {
-          displayIOSDebugInfo(`Recording stopped, format: ${audioBlob.type || "unknown"}, size: ${audioBlob.size} bytes`);
-        }
         
         try {
           setIsLoading(true);

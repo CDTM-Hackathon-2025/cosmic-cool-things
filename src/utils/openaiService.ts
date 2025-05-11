@@ -1,4 +1,3 @@
-
 import { chatContextData } from "@/data/chat_data";
 import { voiceContextData } from "@/data/voice_data";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +10,7 @@ interface ChatMessage {
 // Function to fetch API keys from Supabase
 export async function fetchAPIKeys() {
   try {
-    // Check and log if this is running on iOS
+    // Check if this is running on iOS
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     
@@ -29,16 +28,8 @@ export async function fetchAPIKeys() {
       
     if (openaiError) {
       console.error("Error fetching OpenAI key from Supabase:", openaiError.message);
-      // Display error on screen for iOS devices
-      if (isIOS) {
-        displayIOSDebugInfo(`Supabase OpenAI key fetch error: ${openaiError.message}`);
-      }
     } else {
       console.log("OpenAI key fetch result:", openaiData ? "Key found" : "No key found");
-      // Display status on screen for iOS devices
-      if (isIOS) {
-        displayIOSDebugInfo(`OpenAI key from Supabase: ${openaiData ? "Found" : "Not found"}`);
-      }
     }
     
     // Fetch Mistral key
@@ -50,14 +41,8 @@ export async function fetchAPIKeys() {
       
     if (mistralError) {
       console.error("Error fetching Mistral key from Supabase:", mistralError.message);
-      if (isIOS) {
-        displayIOSDebugInfo(`Supabase Mistral key fetch error: ${mistralError.message}`);
-      }
     } else {
       console.log("Mistral key fetch result:", mistralData ? "Key found" : "No key found");
-      if (isIOS) {
-        displayIOSDebugInfo(`Mistral key from Supabase: ${mistralData ? "Found" : "Not found"}`);
-      }
     }
 
     // Check localStorage as well
@@ -67,12 +52,6 @@ export async function fetchAPIKeys() {
     console.log("Local storage check:", 
       localOpenAI ? "OpenAI key found in localStorage" : "No OpenAI key in localStorage",
       localMistral ? "Mistral key found in localStorage" : "No Mistral key in localStorage");
-    
-    if (isIOS) {
-      displayIOSDebugInfo(
-        `localStorage keys: OpenAI ${localOpenAI ? "Found" : "Not found"}, Mistral ${localMistral ? "Found" : "Not found"}`
-      );
-    }
 
     // Get keys from Supabase table or fallback to localStorage
     const openAI_KEY = openaiData?.text || localStorage.getItem("openai-api-key") || "";
@@ -81,21 +60,10 @@ export async function fetchAPIKeys() {
     console.log("Final API keys loaded:", 
       openAI_KEY ? "OpenAI key available" : "No OpenAI key", 
       mistral_KEY ? "Mistral key available" : "No Mistral key");
-      
-    if (isIOS) {
-      displayIOSDebugInfo(`Final API keys: OpenAI ${openAI_KEY ? "Available" : "Missing"}, Mistral ${mistral_KEY ? "Available" : "Missing"}`);
-    }
 
     return { openAI_KEY, mistral_KEY };
   } catch (error) {
     console.error("Unexpected error fetching API keys:", error);
-    
-    // Check if running on iOS and display error on screen
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (isIOS) {
-      displayIOSDebugInfo(`Error fetching API keys: ${error.message}`);
-    }
     
     // Fallback to localStorage
     const openAI_KEY = localStorage.getItem("openai-api-key") || "";
@@ -276,144 +244,13 @@ function getFallbackResponse(userMessage: string): string {
   }
 }
 
-// Display diagnostic info on screen for iOS-specific debugging
-export function displayIOSError(error: any): void {
-  const errorContainer = document.createElement('div');
-  errorContainer.style.position = 'fixed';
-  errorContainer.style.bottom = '70px';
-  errorContainer.style.left = '10px';
-  errorContainer.style.right = '10px';
-  errorContainer.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
-  errorContainer.style.color = 'red';
-  errorContainer.style.padding = '10px';
-  errorContainer.style.borderRadius = '5px';
-  errorContainer.style.zIndex = '9999';
-  errorContainer.style.fontSize = '12px';
-  errorContainer.style.maxHeight = '30%';
-  errorContainer.style.overflow = 'auto';
-  
-  // Extract useful information from error
-  let errorMessage = 'iOS Speech Recognition Error:\n';
-  
-  if (typeof error === 'object' && error !== null) {
-    errorMessage += `Type: ${error.name || 'Unknown'}\n`;
-    errorMessage += `Message: ${error.message || 'No message'}\n`;
-    
-    if (error.response) {
-      errorMessage += `Status: ${error.response.status}\n`;
-      errorMessage += `Response: ${JSON.stringify(error.response.data || {})}\n`;
-    }
-    
-    if (error.stack) {
-      errorMessage += `Stack: ${error.stack}\n`;
-    }
-  } else {
-    errorMessage += String(error);
-  }
-  
-  errorContainer.textContent = errorMessage;
-  
-  // Add a close button
-  const closeButton = document.createElement('button');
-  closeButton.textContent = 'Close';
-  closeButton.style.marginTop = '10px';
-  closeButton.style.padding = '5px';
-  closeButton.style.background = 'white';
-  closeButton.style.border = '1px solid #ccc';
-  closeButton.style.borderRadius = '3px';
-  closeButton.onclick = () => document.body.removeChild(errorContainer);
-  
-  errorContainer.appendChild(document.createElement('br'));
-  errorContainer.appendChild(closeButton);
-  
-  document.body.appendChild(errorContainer);
-  
-  // Remove after 60 seconds if not closed manually
-  setTimeout(() => {
-    if (document.body.contains(errorContainer)) {
-      document.body.removeChild(errorContainer);
-    }
-  }, 60000);
-}
-
-// Add a new function for displaying general debug info (not just errors)
-export function displayIOSDebugInfo(message: string): void {
-  const debugContainer = document.createElement('div');
-  debugContainer.style.position = 'fixed';
-  debugContainer.style.top = '70px';
-  debugContainer.style.left = '10px';
-  debugContainer.style.right = '10px';
-  debugContainer.style.backgroundColor = 'rgba(0, 0, 255, 0.1)';
-  debugContainer.style.color = 'blue';
-  debugContainer.style.padding = '10px';
-  debugContainer.style.borderRadius = '5px';
-  debugContainer.style.zIndex = '9999';
-  debugContainer.style.fontSize = '12px';
-  debugContainer.style.maxHeight = '30%';
-  debugContainer.style.overflow = 'auto';
-  
-  // Timestamp the message
-  const timestamp = new Date().toLocaleTimeString();
-  debugContainer.textContent = `[${timestamp}] ${message}`;
-  
-  // Add a close button
-  const closeButton = document.createElement('button');
-  closeButton.textContent = 'Close';
-  closeButton.style.marginTop = '10px';
-  closeButton.style.padding = '5px';
-  closeButton.style.background = 'white';
-  closeButton.style.border = '1px solid #ccc';
-  closeButton.style.borderRadius = '3px';
-  closeButton.onclick = () => document.body.removeChild(debugContainer);
-  
-  debugContainer.appendChild(document.createElement('br'));
-  debugContainer.appendChild(closeButton);
-  
-  document.body.appendChild(debugContainer);
-  
-  // Keep track of all debug elements
-  if (!window.iosDebugElements) {
-    window.iosDebugElements = [];
-  }
-  
-  // Add this element to the array
-  window.iosDebugElements.push(debugContainer);
-  
-  // Only keep the last 3 messages
-  while (window.iosDebugElements.length > 3) {
-    const oldestElement = window.iosDebugElements.shift();
-    if (document.body.contains(oldestElement)) {
-      document.body.removeChild(oldestElement);
-    }
-  }
-  
-  // Remove after 20 seconds if not closed manually
-  setTimeout(() => {
-    if (document.body.contains(debugContainer)) {
-      document.body.removeChild(debugContainer);
-      // Also remove from the array
-      const index = window.iosDebugElements.indexOf(debugContainer);
-      if (index > -1) {
-        window.iosDebugElements.splice(index, 1);
-      }
-    }
-  }, 20000);
-}
-
-// Add TypeScript interface for window object
-declare global {
-  interface Window {
-    iosDebugElements?: HTMLDivElement[];
-  }
-}
-
 // Enhanced speechToText function with better iOS handling
 export async function speechToText(audioBlob: Blob): Promise<string> {
   const { openAI_KEY } = await fetchAPIKeys();
   
   if (!openAI_KEY) {
     const noKeyError = new Error("OpenAI API key is not set for speech-to-text conversion.");
-    displayIOSError(noKeyError);
+    console.error(noKeyError);
     throw noKeyError;
   }
   
@@ -425,10 +262,6 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   console.log("Device detection - iOS:", isIOS, "User Agent:", navigator.userAgent);
   
-  if (isIOS) {
-    displayIOSDebugInfo(`Starting iOS speech-to-text with OpenAI key ${openAI_KEY ? "available" : "missing"}`);
-  }
-  
   const formData = new FormData();
   
   // For iOS devices, we need to ensure the audio is properly formatted
@@ -438,9 +271,6 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
     console.log("Audio blob size:", audioBlob.size, "bytes");
     
     try {
-      // Display key info for debugging
-      displayIOSDebugInfo(`API Key check: ${openAI_KEY.substring(0, 3)}...${openAI_KEY.substring(openAI_KEY.length - 3)}`);
-      
       // Create a new blob with explicit mime type - UPDATED FOR iOS COMPATIBILITY
       const audioType = audioBlob.type || '';
       console.log("Original audio MIME type:", audioType);
@@ -469,7 +299,6 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
       
       console.log("Final MIME type:", processedBlob.type || 'No MIME type (using filename extension)');
       console.log("Using filename:", filename);
-      displayIOSDebugInfo(`Audio format: ${filename}, size: ${processedBlob.size} bytes`);
       
       // Append with the appropriate filename to help the API identify the format
       formData.append("file", processedBlob, filename);
@@ -480,7 +309,6 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
       // Add detailed logging for request preparation
       console.log("FormData prepared with file and model");
       console.log("Starting iOS-specific request to Whisper API...");
-      displayIOSDebugInfo("Sending audio to OpenAI Whisper API...");
       
       // Add response format specification for iOS
       formData.append("response_format", "json");
@@ -495,38 +323,19 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
       });
       
       console.log("iOS Whisper API response status:", response.status);
-      displayIOSDebugInfo(`API response status: ${response.status}`);
       
       // Enhanced error handling for iOS
       if (!response.ok) {
         const errorText = await response.text();
         console.error("iOS Whisper API error response:", errorText);
-        
-        // Create detailed error for diagnosis
-        let errorDetail = `Status: ${response.status}, iOS audio format: ${filename}, Size: ${audioBlob.size} bytes`;
-        
-        if (response.status === 400) {
-          const error = new Error(`iOS audio format error (${errorDetail}). ${errorText}`);
-          displayIOSError(error); // Show error on screen
-          throw error;
-        } else if (response.status === 401) {
-          const error = new Error(`Authentication failed for iOS (${errorDetail}). Your OpenAI API key might be invalid.`);
-          displayIOSError(error); // Show error on screen
-          throw error;
-        } else {
-          const error = new Error(`OpenAI Whisper API error for iOS: ${response.status} ${response.statusText} (${errorDetail}). ${errorText}`);
-          displayIOSError(error); // Show error on screen
-          throw error;
-        }
+        throw new Error(`OpenAI Whisper API error for iOS: ${response.status} ${response.statusText}`);
       }
       
       const data = await response.json();
       console.log("Successfully transcribed iOS audio:", data);
-      displayIOSDebugInfo("Audio successfully transcribed!");
       return data.text;
     } catch (error) {
       console.error("Detailed error in iOS speech-to-text:", error);
-      displayIOSError(error); // Show error on screen
       throw error;
     }
   } else {
