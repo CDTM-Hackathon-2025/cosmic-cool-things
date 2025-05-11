@@ -249,9 +249,12 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
     }
   };
   
+  // Enhanced microphone recording start function with better iOS support
   const startRecording = async () => {
     try {
-      // Request higher quality audio settings for better speech recognition
+      console.log("Attempting to access microphone...");
+      
+      // Request microphone access with optimal settings for speech recognition
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
@@ -262,79 +265,147 @@ const ChatPopup = ({ isOpen, onClose }: ChatPopupProps) => {
         } 
       });
       
-      // Configure MediaRecorder based on platform
+      console.log("Microphone access granted successfully");
+      
+      // Determine the optimal recording configuration based on platform
       const isIOS = isIOSDevice();
-      let options = {};
+      console.log(`Device detected: ${isIOS ? "iOS" : "Non-iOS"}`);
+      
+      let options: MediaRecorderOptions = {};
       
       if (isIOS) {
-        // For iOS, we need to use a compatible audio format (MPEG or MP4)
-        // The actual codec will be AAC which is compatible with Whisper API
-        console.log("Using iOS-compatible audio format (audio/mp4)");
+        // For iOS, we need to use compatible formats
+        console.log("Using iOS-compatible audio format");
         options = { 
-          mimeType: 'audio/mp4',
+          mimeType: 'audio/mp4',  // This translates to m4a on iOS
           audioBitsPerSecond: 128000 // Higher bitrate for better quality
         };
       } else {
-        // Standard WebM format for other platforms
-        console.log("Using standard audio format (audio/webm)");
+        // For other platforms, use WebM
+        console.log("Using standard WebM audio format");
         options = { 
           mimeType: 'audio/webm',
-          audioBitsPerSecond: 128000 // Higher bitrate for better quality
+          audioBitsPerSecond: 128000
         };
       }
       
-      const mediaRecorder = new MediaRecorder(stream, options);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-      
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-      
-      mediaRecorder.onstop = async () => {
-        // Combine audio chunks into a single blob with proper type
-        const audioType = isIOS ? 'audio/mp4' : 'audio/webm';
-        const audioBlob = new Blob(audioChunksRef.current, { type: audioType });
+      try {
+        const mediaRecorder = new MediaRecorder(stream, options);
+        console.log(`MediaRecorder created with options: ${JSON.stringify(options)}`);
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
         
-        console.log(`Recording completed. Blob type: ${audioBlob.type}, size: ${audioBlob.size} bytes`);
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            console.log(`Audio data chunk received, size: ${event.data.size} bytes`);
+            audioChunksRef.current.push(event.data);
+          }
+        };
         
-        try {
-          setIsLoading(true);
-          // Convert speech to text using the Whisper API
-          const transcribedText = await speechToText(audioBlob);
+        mediaRecorder.onstop = async () => {
+          console.log("MediaRecorder stopped, processing audio...");
           
-          if (transcribedText.trim()) {
-            // Handle the transcribed message
-            handleVoiceMessage(transcribedText);
-          } else {
+          // Combine audio chunks
+          const audioType = isIOS ? 'audio/mp4' : 'audio/webm';
+          const audioBlob = new Blob(audioChunksRef.current, { type: audioType });
+          
+          console.log(`Recording completed. Blob type: ${audioBlob.type}, size: ${audioBlob.size} bytes`);
+          
+          if (audioBlob.size < 1000) {
+            console.warn("Audio recording is too small, may not contain speech");
             toast({
-              title: "Could not detect speech",
-              description: "Please try again speaking clearly",
+              title: "Recording Failed",
+              description: "No audio was captured. Please check your microphone access and try again.",
+            });
+            setIsLoading(false);
+            return;
+          }
+          
+          try {
+            setIsLoading(true);
+            // Convert speech to text using the Whisper API
+            console.log("Sending audio to speech-to-text service...");
+            const transcribedText = await speechToText(audioBlob);
+            
+            if (transcribedText.trim()) {
+              console.log("Transcription received:", transcribedText);
+              // Handle the transcribed message
+              handleVoiceMessage(transcribedText);
+            } else {
+              console.warn("Empty transcription received");
+              toast({
+                title: "Could not detect speech",
+                description: "Please try again speaking clearly",
+              });
+              setIsLoading(false);
+            }
+          } catch (error) {
+            console.error("Speech recognition failed:", error);
+            toast({
+              title: "Speech Recognition Failed",
+              description: "Please check your microphone and try again.",
             });
             setIsLoading(false);
           }
-        } catch (error) {
-          console.error("Speech recognition failed:", error);
-          toast({
-            title: "Speech Recognition Failed",
-            description: "Please check your microphone and try again.",
-          });
-          setIsLoading(false);
-        }
-      };
-      
-      // Use smaller timeSlice for more frequent data collection
-      // This helps with audio quality, especially on iOS
-      mediaRecorder.start(250);
-      setIsRecording(true);
+        };
+        
+        // Use smaller timeSlice for more frequent data collection
+        // This helps with audio quality, especially on iOS
+        console.log("Starting MediaRecorder with 250ms timeslice");
+        mediaRecorder.start(250);
+        setIsRecording(true);
+        
+      } catch (mediaRecorderError) {
+        console.error("Error creating MediaRecorder:", mediaRecorderError);
+        
+        // If MediaRecorder fails with the specified MIME type, try with default settings
+        console.log("Trying with default MediaRecorder settings");
+        const fallbackRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = fallbackRecorder;
+        audioChunksRef.current = [];
+        
+        fallbackRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
+        
+        fallbackRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current);
+          console.log(`Fallback recording completed. Blob type: ${audioBlob.type}, size: ${audioBlob.size} bytes`);
+          
+          try {
+            setIsLoading(true);
+            const transcribedText = await speechToText(audioBlob);
+            
+            if (transcribedText.trim()) {
+              handleVoiceMessage(transcribedText);
+            } else {
+              toast({
+                title: "Could not detect speech",
+                description: "Please try again speaking clearly",
+              });
+              setIsLoading(false);
+            }
+          } catch (error) {
+            console.error("Speech recognition failed:", error);
+            toast({
+              title: "Speech Recognition Failed",
+              description: "Please check your microphone and try again.",
+            });
+            setIsLoading(false);
+          }
+        };
+        
+        fallbackRecorder.start();
+        setIsRecording(true);
+      }
       
     } catch (error) {
       console.error("Error accessing microphone:", error);
       toast({
         title: "Microphone Access Denied",
-        description: "Please allow microphone access to use voice features.",
+        description: "Please allow microphone access in your browser settings and try again.",
       });
     }
   };

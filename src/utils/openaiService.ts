@@ -1,3 +1,4 @@
+
 import { chatContextData } from "@/data/chat_data";
 import { voiceContextData } from "@/data/voice_data";
 import { supabase } from "@/integrations/supabase/client";
@@ -227,7 +228,9 @@ function getFallbackResponse(userMessage: string): string {
 
 // Helper function to detect iOS devices correctly
 export function isIOSDevice(): boolean {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent);
+  // More reliable iOS detection
+  const userAgent = navigator.userAgent || '';
+  return /iPad|iPhone|iPod/.test(userAgent);
 }
 
 // Improved audio format normalization for iOS devices
@@ -236,10 +239,9 @@ export const normalizeAudioFormat = (audioBlob: Blob, isIOS: boolean): Promise<B
     if (isIOS) {
       console.log("iOS device detected, normalizing audio format for Whisper API compatibility");
       
-      // iOS typically records in m4a format with AAC codec
-      // The Whisper API accepts this format but needs the correct MIME type
+      // On iOS, we need to handle m4a format correctly
       const properBlob = new Blob([audioBlob], { 
-        type: 'audio/mp4' // Correct MIME type for iOS m4a files
+        type: 'audio/mp4' // iOS uses m4a (which is audio/mp4 MIME type)
       });
       
       console.log(`Normalized iOS audio: type=${properBlob.type}, size=${properBlob.size} bytes`);
@@ -255,7 +257,7 @@ export const normalizeAudioFormat = (audioBlob: Blob, isIOS: boolean): Promise<B
   });
 };
 
-// Speech-to-text function using Whisper API
+// Speech-to-text function using Whisper API - enhanced for iOS compatibility
 export async function speechToText(audioBlob: Blob): Promise<string> {
   const { openAI_KEY } = await fetchAPIKeys();
   
@@ -269,11 +271,11 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
   const isIOS = isIOSDevice();
   const normalizedBlob = await normalizeAudioFormat(audioBlob, isIOS);
   
-  console.log("Sending audio to Whisper API with MIME type:", normalizedBlob.type);
+  console.log(`Sending audio to Whisper API with MIME type: ${normalizedBlob.type}, size: ${normalizedBlob.size} bytes`);
   
   const formData = new FormData();
   
-  // Use the correct file extension based on device type
+  // Use the correct file extension and content type based on device type
   const fileExtension = isIOS ? "m4a" : "webm";
   formData.append("file", normalizedBlob, `recording.${fileExtension}`);
   formData.append("model", "whisper-1");
@@ -294,7 +296,7 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Whisper API error response:", errorText);
-      throw new Error(`OpenAI Whisper API error: ${response.status} ${response.statusText}`);
+      throw new Error(`OpenAI Whisper API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
     
     const data = await response.json();
